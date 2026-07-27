@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 980">
+  <defs><linearGradient id="b" x2="1" y2="1"><stop stop-color="#18211f"/><stop offset="1" stop-color="#070b0b"/></linearGradient><radialGradient id="g"><stop stop-color="#b88844" stop-opacity=".42"/><stop offset="1" stop-color="#171b19" stop-opacity="0"/></radialGradient></defs>
+  <rect width="700" height="980" fill="url(#b)"/><circle cx="350" cy="360" r="310" fill="url(#g)"/>
+  <path d="M78 50h2v880h-2zm16 0h1v880h-1z" fill="#b88844" opacity=".7"/>
+  <g fill="none" stroke="#c9944c" opacity=".65"><circle cx="350" cy="285" r="91"/><circle cx="350" cy="285" r="75"/><path d="M350 194v182M259 285h182M286 221l128 128M414 221 286 349"/></g>
+  <text x="350" y="465" text-anchor="middle" fill="#d4a158" font-size="18" letter-spacing="7" font-family="serif">BEETHOVEN</text>
+  <text x="350" y="545" text-anchor="middle" fill="#f5efe1" font-size="55" font-family="serif">MOONLIGHT</text>
+  <text x="350" y="603" text-anchor="middle" fill="#f5efe1" font-size="55" font-family="serif">SONATA</text>
+  <path d="M255 645h190" stroke="#ae7b3e"/>
+  <text x="350" y="690" text-anchor="middle" fill="#b9b2a5" font-size="16" letter-spacing="4" font-family="serif">OPUS 27 · NO. 2</text>
+  <text x="350" y="882" text-anchor="middle" fill="#9e8d73" font-size="12" letter-spacing="3">MAESTRO EDITIONS</text>
+</svg>
