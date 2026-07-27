@@ -89,6 +89,7 @@ function BookStage({ pages, spread, tilt, setTilt, turning, setTurning, fullscre
   const stage = useRef(null);
   const dragging = useRef(false);
   const start = useRef({ x: 0, y: 0, rx: 0, ry: 0 });
+  const [bookAspect, setBookAspect] = useState(1.414);
   const totalSpreads = Math.max(1, Math.ceil((pages.length - 1) / 2));
   const safeSpread = Math.min(spread, totalSpreads);
   const leftIndex = safeSpread === 0 ? 0 : 1 + (safeSpread - 1) * 2;
@@ -110,6 +111,12 @@ function BookStage({ pages, spread, tilt, setTilt, turning, setTurning, fullscre
     });
   };
   const up = () => dragging.current = false;
+  const measurePage = (event) => {
+    const image = event.currentTarget;
+    if (!image.naturalWidth || !image.naturalHeight) return;
+    const spreadAspect = (image.naturalWidth / image.naturalHeight) * 2;
+    setBookAspect(Math.max(1.1, Math.min(2.2, spreadAspect)));
+  };
 
   return (
     <div ref={stage} className={`book-stage ${fullscreen ? "stage-fullscreen" : ""}`}
@@ -121,13 +128,15 @@ function BookStage({ pages, spread, tilt, setTilt, turning, setTurning, fullscre
       </div>
       <div className="ambient-glow" />
       <div className={`book-wrap ${turning ? "is-turning" : ""}`}
-        style={{ transform: `rotateX(${tilt.x}deg) rotateY(${tilt.y}deg)` }}>
-        <div className="book-shadow" />
+        style={{
+          "--book-aspect": bookAspect,
+          transform: `rotateX(${tilt.x}deg) rotateY(${tilt.y}deg)`
+        }}>
         <div className={`book ${right ? "open" : "closed"}`}>
           <div className="page-stack left-stack" style={{ "--stack": Math.min(14, leftIndex) }} />
           <div className="page-stack right-stack" style={{ "--stack": Math.min(14, pages.length - leftIndex) }} />
           <div className="book-page left-page">
-            <img src={left?.src} alt={left?.name || "Book page"} />
+            <img src={left?.src} alt={left?.name || "Book page"} onLoad={measurePage} />
             {safeSpread > 0 && <span className="page-no">{leftIndex}</span>}
           </div>
           {right && <div className="book-page right-page">
