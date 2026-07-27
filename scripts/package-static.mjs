@@ -1,4 +1,4 @@
-import { cpSync, existsSync, rmSync } from "node:fs";
+import { cpSync, mkdirSync } from "node:fs";
 
-if (existsSync("dist")) rmSync("dist", { recursive: true, force: true });
-cpSync("out", "dist", { recursive: true });
+mkdirSync("dist/.openai", { recursive: true });
+cpSync(".openai/hosting.json", "dist/.openai/hosting.json");
