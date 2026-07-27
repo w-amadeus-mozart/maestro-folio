@@ -58,14 +58,14 @@ const readFile = (file) => new Promise((resolve) => {
   reader.readAsDataURL(file);
 });
 
-function UploadTile({ icon: Icon, title, detail, accept, multiple, onFiles, filled }) {
+function UploadTile({ icon: Icon, title, detail, accept, multiple, onFiles, filled, inputId }) {
   const input = useRef(null);
   return (
     <button className={`upload-tile ${filled ? "filled" : ""}`} onClick={() => input.current?.click()}>
       <span className="upload-icon">{filled ? <Check size={18} /> : <Icon size={19} />}</span>
       <span><strong>{title}</strong><small>{detail}</small></span>
       <span className="tile-action">{filled ? "Replace" : "Add"}</span>
-      <input ref={input} hidden type="file" accept={accept} multiple={multiple}
+      <input ref={input} id={inputId} hidden type="file" accept={accept} multiple={multiple}
         onChange={(e) => onFiles([...e.target.files])} />
     </button>
   );
@@ -332,6 +332,8 @@ export default function Home() {
   const [bookmarks, setBookmarks] = useState([]);
   const [activeBookmarkId, setActiveBookmarkId] = useState(null);
   const [bookmarkDraft, setBookmarkDraft] = useState(null);
+  const [editorTab, setEditorTab] = useState("details");
+  const [sideTab, setSideTab] = useState("pages");
   const [pdfImport, setPdfImport] = useState({ open: false, status: "idle", pages: [], frontIndex: 0, indexIndex: -1, progress: 0 });
   const maxSpread = Math.max(0, Math.ceil((pages.length - 1) / 2));
   const activeBookmark = bookmarks.find((bookmark) => bookmark.id === activeBookmarkId) || null;
@@ -533,76 +535,107 @@ export default function Home() {
       {mode === "library" ? <LibraryView books={books} onOpen={openBook} onDelete={del} onCreate={createNew} /> :
       <main className="workspace">
         <section className="editor-panel">
-          <div className="panel-heading">
-            <span className="eyebrow">BOOK DETAILS</span>
-            <h1>Build your folio</h1>
-            <p>Add your score, then arrange it exactly as you’d like.</p>
+          <div className="editor-titlebar">
+            <div><span className="eyebrow">BOOK SETUP</span><strong>{title || "Untitled score"}</strong></div>
+            <span>{pages.length} pages</span>
           </div>
-          <label className="field"><span>Title</span><input value={title} onChange={(e) => { setTitle(e.target.value); setSaved(false); }} /></label>
-          <label className="field"><span>Composer</span><input value={composer} onChange={(e) => { setComposer(e.target.value); setSaved(false); }} /></label>
-          <div className="divider" />
-          <div className="section-title"><div><span className="eyebrow">BOOK CONTENT</span><h2>Pages</h2></div><span className="page-count">{pages.length} pages</span></div>
-          <div className="upload-stack">
-            <UploadTile icon={FileImage} title="Cover artwork" detail="JPG or PNG" accept="image/*" filled={pages.some(p => p.kind === "cover")} onFiles={(f) => addImages(f, "cover")} />
-            <UploadTile icon={Menu} title="Index page" detail="Optional" accept="image/*" filled={pages.some(p => p.kind === "index")} onFiles={(f) => addImages(f, "index")} />
-            <UploadTile icon={ImagePlus} title="Sheet music pages" detail="Select multiple pages" accept="image/*" multiple onFiles={(f) => addImages(f, "page")} />
-            <UploadTile icon={FileText} title="Import complete PDF" detail="Choose cover and index after upload" accept="application/pdf,.pdf" onFiles={beginPdfImport} />
+          <div className="editor-tabs" role="tablist">
+            <button className={editorTab === "details" ? "active" : ""} onClick={() => setEditorTab("details")}>Details</button>
+            <button className={editorTab === "content" ? "active" : ""} onClick={() => setEditorTab("content")}>Content</button>
+            <button className={editorTab === "audio" ? "active" : ""} onClick={() => setEditorTab("audio")}>Audio</button>
+            <button className={editorTab === "navigation" ? "active" : ""} onClick={() => setEditorTab("navigation")}>Navigation</button>
           </div>
-          <div className="book-option">
-            <div><strong>Display page numbers</strong><small>Custom numbering options are coming later.</small></div>
-            <button className={`switch ${showPageNumbers ? "on" : ""}`} role="switch" aria-checked={showPageNumbers}
-              onClick={() => { setShowPageNumbers(!showPageNumbers); setSaved(false); }}>
-              <span />
-            </button>
-          </div>
-          <div className="thumb-heading"><span>Page order</span><small>Click to preview · drag coming soon</small></div>
-          <div className="thumb-grid">
-            {pages.map((page, i) => <PageThumb key={page.id} page={page} index={i} active={spread > 0 && (i === 1 + (spread - 1) * 2 || i === 2 + (spread - 1) * 2)}
-              onClick={() => { setSpread(i === 0 ? 0 : Math.ceil(i / 2)); setActiveBookmarkId(null); }}
-              onRemove={() => { setPages(pages.filter(x => x.id !== page.id)); setSpread(0); }} />)}
-            <button className="add-thumb" onClick={() => document.querySelectorAll('input[type=file]')[2]?.click()}><Plus size={19} /><span>Add</span></button>
-          </div>
-          <div className="bookmark-section">
-            <div className="bookmark-heading">
-              <div><span className="eyebrow">NAVIGATION</span><h3>Bookmarks</h3></div>
-              <button onClick={openBookmarkCreator}><BookmarkPlus size={14} /> Add</button>
-            </div>
-            <p className="bookmark-current">Bookmarking: <strong>{spreadLabel(spread)}</strong></p>
-            {bookmarks.length === 0 ? (
-              <div className="bookmark-empty"><Bookmark size={18} /><span>No bookmarks yet</span><small>Save named pieces and their recordings here.</small></div>
-            ) : (
-              <div className="bookmark-list">
-                {bookmarks.map((bookmark) => (
-                  <article className={`bookmark-row ${activeBookmarkId === bookmark.id ? "active" : ""}`} key={bookmark.id}>
-                    <button className="bookmark-open" onClick={() => openBookmark(bookmark)}>
-                      <span className="bookmark-pin"><Bookmark size={14} fill="currentColor" /></span>
-                      <span><strong>{bookmark.name}</strong><small>{spreadLabel(bookmark.spread)}{bookmark.audioName ? ` · ${bookmark.audioName}` : " · No audio"}</small></span>
-                    </button>
-                    <button className="bookmark-delete" onClick={() => deleteBookmark(bookmark.id)} aria-label={`Delete ${bookmark.name}`}><Trash2 size={13} /></button>
-                  </article>
-                ))}
+          <div className="editor-scroll">
+            {editorTab === "details" && <div className="editor-tab-content">
+              <div className="panel-heading compact"><span className="eyebrow">BOOK DETAILS</span><h1>Book setup</h1><p>Name your score and choose its display options.</p></div>
+              <label className="field"><span>Title</span><input value={title} onChange={(e) => { setTitle(e.target.value); setSaved(false); }} /></label>
+              <label className="field"><span>Composer</span><input value={composer} onChange={(e) => { setComposer(e.target.value); setSaved(false); }} /></label>
+              <div className="section-rule"><span>DISPLAY OPTIONS</span></div>
+              <div className="book-option tab-option">
+                <div><strong>Display page numbers</strong><small>Turn off for scores that already include them.</small></div>
+                <button className={`switch ${showPageNumbers ? "on" : ""}`} role="switch" aria-checked={showPageNumbers}
+                  onClick={() => { setShowPageNumbers(!showPageNumbers); setSaved(false); }}><span /></button>
               </div>
-            )}
+              <div className="detected-size"><span>Detected page shape</span><strong>Automatic from upload</strong><small>The 3D book follows each page’s original proportions.</small></div>
+            </div>}
+
+            {editorTab === "content" && <div className="editor-tab-content">
+              <div className="section-title"><div><span className="eyebrow">BOOK CONTENT</span><h2>Pages & files</h2></div><span className="page-count">{pages.length} pages</span></div>
+              <div className="upload-stack">
+                <UploadTile icon={FileImage} title="Cover artwork" detail="JPG or PNG" accept="image/*" filled={pages.some(p => p.kind === "cover")} onFiles={(f) => addImages(f, "cover")} />
+                <UploadTile icon={Menu} title="Index page" detail="Optional" accept="image/*" filled={pages.some(p => p.kind === "index")} onFiles={(f) => addImages(f, "index")} />
+                <UploadTile inputId="sheet-pages-input" icon={ImagePlus} title="Sheet music pages" detail="Select multiple images" accept="image/*" multiple onFiles={(f) => addImages(f, "page")} />
+                <UploadTile inputId="pdf-import-input" icon={FileText} title="Import complete PDF" detail="Choose cover and index after upload" accept="application/pdf,.pdf" onFiles={beginPdfImport} />
+              </div>
+              <div className="content-note"><FileText size={16} /><p><strong>PDF import keeps page order.</strong><br />Choose the cover and index after the file is rendered.</p></div>
+            </div>}
+
+            {editorTab === "audio" && <div className="editor-tab-content">
+              <div className="panel-heading compact"><span className="eyebrow">COMPANION AUDIO</span><h1>Book recording</h1><p>Add one recording for the full book. Bookmark recordings remain separate.</p></div>
+              <UploadTile icon={Headphones} title="Companion recording" detail={audioName || "MP3, WAV or M4A"} accept="audio/*" filled={Boolean(audioSrc)} onFiles={(files) => files[0] && pickAudio(files[0])} />
+              {audioSrc && <div className="audio-file-card"><span><Headphones size={17} /></span><div><strong>{audioName}</strong><small>Loaded in the pinned player</small></div></div>}
+              <div className="content-note"><Bookmark size={16} /><p><strong>Piece-specific audio</strong><br />Attach recordings while creating bookmarks in Navigation.</p></div>
+            </div>}
+
+            {editorTab === "navigation" && <div className="editor-tab-content">
+              <div className="bookmark-heading">
+                <div><span className="eyebrow">NAVIGATION</span><h3>Bookmarks</h3></div>
+                <button onClick={openBookmarkCreator}><BookmarkPlus size={14} /> Add</button>
+              </div>
+              <p className="bookmark-current">Current location: <strong>{spreadLabel(spread)}</strong></p>
+              {bookmarks.length === 0 ? <div className="bookmark-empty"><Bookmark size={18} /><span>No bookmarks yet</span><small>Save a cover, index, or named piece.</small></div> :
+              <div className="bookmark-list">{bookmarks.map((bookmark) => <article className={`bookmark-row ${activeBookmarkId === bookmark.id ? "active" : ""}`} key={bookmark.id}>
+                <button className="bookmark-open" onClick={() => openBookmark(bookmark)}><span className="bookmark-pin"><Bookmark size={14} fill="currentColor" /></span><span><strong>{bookmark.name}</strong><small>{spreadLabel(bookmark.spread)}{bookmark.audioName ? ` · ${bookmark.audioName}` : " · No audio"}</small></span></button>
+                <button className="bookmark-delete" onClick={() => deleteBookmark(bookmark.id)} aria-label={`Delete ${bookmark.name}`}><Trash2 size={13} /></button>
+              </article>)}</div>}
+            </div>}
           </div>
-          <div className="tip"><Headphones size={17} /><p><strong>Bookmark audio</strong><br />Open a bookmark to load its recording in the player.</p></div>
+          <div className="quick-actions">
+            <button onClick={() => { setEditorTab("content"); setTimeout(() => document.getElementById("pdf-import-input")?.click(), 0); }}><FileText size={14} /> Import PDF</button>
+            <button onClick={openBookmarkCreator}><BookmarkPlus size={14} /> Bookmark here</button>
+          </div>
         </section>
 
         <section className="preview-panel">
           <div className="preview-head">
-            <div><span className="live-dot" /> LIVE PREVIEW</div>
-            <div className="book-meta"><strong>{title}</strong><span>·</span><span>{pages.length} pages</span></div>
+            <div><span className="live-dot" /> 3D BOOK PREVIEW</div>
+            <div className="book-meta"><strong>{title}</strong><span>·</span><span>{spreadLabel(spread)}</span></div>
           </div>
           <BookStage pages={pages} spread={spread} tilt={tilt} setTilt={setTilt} turning={turning} setTurning={setTurning}
             fullscreen={fullscreen} onFullscreen={() => setFullscreen(!fullscreen)} showPageNumbers={showPageNumbers} />
           <div className="reader-controls">
             <button onClick={() => go(-1)} disabled={spread <= 0}><ChevronLeft size={21} /></button>
-            <div><strong>{spread === 0 ? "Front cover" : `Pages ${1 + (spread - 1) * 2}–${Math.min(pages.length - 1, 2 + (spread - 1) * 2)}`}</strong>
-              <small>{spread + 1} of {maxSpread + 1}</small></div>
+            <div><strong>{spreadLabel(spread)}</strong><small>{spread + 1} of {maxSpread + 1}</small></div>
             <button onClick={() => go(1)} disabled={spread >= maxSpread}><ChevronRight size={21} /></button>
           </div>
           <AudioBar key={activeBookmark?.id || "book-audio"} audioSrc={activeBookmark ? activeBookmark.audioSrc : audioSrc}
             audioName={activeBookmark ? `${activeBookmark.name}${activeBookmark.audioName ? ` · ${activeBookmark.audioName}` : " · No audio attached"}` : audioName} onPick={pickPlayerAudio} />
         </section>
+
+        <aside className="side-panel">
+          <div className="side-tabs">
+            <button className={sideTab === "pages" ? "active" : ""} onClick={() => setSideTab("pages")}><FileImage size={14} /> Pages</button>
+            <button className={sideTab === "bookmarks" ? "active" : ""} onClick={() => setSideTab("bookmarks")}><Bookmark size={14} /> Bookmarks <span>{bookmarks.length}</span></button>
+          </div>
+          {sideTab === "pages" ? <>
+            <div className="side-panel-head"><span>ALL PAGES ({pages.length})</span><small>Quick jump</small></div>
+            <div className="side-page-grid">
+              {pages.map((page, index) => <button key={page.id} className={(spread === 0 && index === 0) || (spread > 0 && (index === 1 + (spread - 1) * 2 || index === 2 + (spread - 1) * 2)) ? "active" : ""}
+                onClick={() => { setSpread(index === 0 ? 0 : Math.ceil(index / 2)); setActiveBookmarkId(null); }}>
+                <img src={page.src} alt={page.name} /><span>{page.kind === "cover" ? "Cover" : page.kind === "index" ? "Index" : index}</span>
+              </button>)}
+            </div>
+            <div className="side-panel-footer"><button onClick={() => { setEditorTab("content"); setTimeout(() => document.getElementById("sheet-pages-input")?.click(), 0); }}><Plus size={14} /> Add pages</button></div>
+          </> : <>
+            <div className="side-panel-head"><span>BOOKMARKS ({bookmarks.length})</span><button onClick={openBookmarkCreator}><Plus size={13} /> Add here</button></div>
+            <div className="side-bookmark-list">
+              {bookmarks.length === 0 ? <div className="side-empty"><Bookmark size={21} /><strong>No bookmarks</strong><small>Navigate to a page and add one.</small></div> : bookmarks.map((bookmark) =>
+                <button key={bookmark.id} className={activeBookmarkId === bookmark.id ? "active" : ""} onClick={() => openBookmark(bookmark)}>
+                  <span><Bookmark size={14} fill="currentColor" /></span><div><strong>{bookmark.name}</strong><small>{spreadLabel(bookmark.spread)}{bookmark.audioName ? " · Audio" : ""}</small></div><ChevronRight size={14} />
+                </button>)}
+            </div>
+          </>}
+        </aside>
       </main>}
       <BookmarkModal
         draft={bookmarkDraft}
