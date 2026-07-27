@@ -301,13 +301,13 @@ function BookmarkModal({ draft, setDraft, location, onConfirm, onClose, onAudio 
             onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value }))} />
         </label>
         <div className="bookmark-audio-field">
-          <div><span>Audio file</span><strong>{draft.audioName || "A recording is required"}</strong><small>MP3, WAV or M4A</small></div>
+          <div><span>Audio file · optional</span><strong>{draft.audioName || "No recording attached"}</strong><small>MP3, WAV or M4A</small></div>
           <button onClick={() => audioInput.current?.click()}><Headphones size={15} /> {draft.audioSrc ? "Replace" : "Choose audio"}</button>
           <input ref={audioInput} hidden type="file" accept="audio/*" onChange={(event) => event.target.files[0] && onAudio(event.target.files[0])} />
         </div>
         <div className="bookmark-modal-actions">
           <button className="pdf-cancel" onClick={onClose}>Cancel</button>
-          <button className="primary" disabled={!draft.name.trim() || !draft.audioSrc} onClick={onConfirm}><BookmarkPlus size={16} /> Add bookmark</button>
+          <button className="primary" disabled={!draft.name.trim()} onClick={onConfirm}><BookmarkPlus size={16} /> Add bookmark</button>
         </div>
       </div>
     </div>
@@ -448,7 +448,7 @@ export default function Home() {
   };
 
   const confirmBookmark = () => {
-    if (!bookmarkDraft?.name.trim() || !bookmarkDraft.audioSrc) return;
+    if (!bookmarkDraft?.name.trim()) return;
     const bookmark = { ...bookmarkDraft, name: bookmarkDraft.name.trim() };
     setBookmarks((current) => [...current, bookmark]);
     setActiveBookmarkId(bookmark.id);
@@ -576,7 +576,7 @@ export default function Home() {
                   <article className={`bookmark-row ${activeBookmarkId === bookmark.id ? "active" : ""}`} key={bookmark.id}>
                     <button className="bookmark-open" onClick={() => openBookmark(bookmark)}>
                       <span className="bookmark-pin"><Bookmark size={14} fill="currentColor" /></span>
-                      <span><strong>{bookmark.name}</strong><small>{spreadLabel(bookmark.spread)} · {bookmark.audioName}</small></span>
+                      <span><strong>{bookmark.name}</strong><small>{spreadLabel(bookmark.spread)}{bookmark.audioName ? ` · ${bookmark.audioName}` : " · No audio"}</small></span>
                     </button>
                     <button className="bookmark-delete" onClick={() => deleteBookmark(bookmark.id)} aria-label={`Delete ${bookmark.name}`}><Trash2 size={13} /></button>
                   </article>
@@ -600,8 +600,8 @@ export default function Home() {
               <small>{spread + 1} of {maxSpread + 1}</small></div>
             <button onClick={() => go(1)} disabled={spread >= maxSpread}><ChevronRight size={21} /></button>
           </div>
-          <AudioBar key={activeBookmark?.id || "book-audio"} audioSrc={activeBookmark?.audioSrc || audioSrc}
-            audioName={activeBookmark ? `${activeBookmark.name} · ${activeBookmark.audioName}` : audioName} onPick={pickPlayerAudio} />
+          <AudioBar key={activeBookmark?.id || "book-audio"} audioSrc={activeBookmark ? activeBookmark.audioSrc : audioSrc}
+            audioName={activeBookmark ? `${activeBookmark.name}${activeBookmark.audioName ? ` · ${activeBookmark.audioName}` : " · No audio attached"}` : audioName} onPick={pickPlayerAudio} />
         </section>
       </main>}
       <BookmarkModal
