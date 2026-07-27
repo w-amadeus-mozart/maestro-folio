@@ -85,7 +85,7 @@ function PageThumb({ page, index, active, onClick, onRemove }) {
   );
 }
 
-function BookStage({ pages, spread, tilt, setTilt, turning, setTurning, fullscreen, onFullscreen }) {
+function BookStage({ pages, spread, tilt, setTilt, turning, setTurning, fullscreen, onFullscreen, showPageNumbers }) {
   const stage = useRef(null);
   const dragging = useRef(false);
   const start = useRef({ x: 0, y: 0, rx: 0, ry: 0 });
@@ -137,11 +137,11 @@ function BookStage({ pages, spread, tilt, setTilt, turning, setTurning, fullscre
           <div className="page-stack right-stack" style={{ "--stack": Math.min(14, pages.length - leftIndex) }} />
           <div className="book-page left-page">
             <img src={left?.src} alt={left?.name || "Book page"} onLoad={measurePage} />
-            {safeSpread > 0 && <span className="page-no">{leftIndex}</span>}
+            {showPageNumbers && safeSpread > 0 && <span className="page-no">{leftIndex}</span>}
           </div>
           {right && <div className="book-page right-page">
             <img src={right.src} alt={right.name} />
-            <span className="page-no">{rightIndex}</span>
+            {showPageNumbers && <span className="page-no">{rightIndex}</span>}
           </div>}
           {turning && <div className="turning-page"><div className="turning-front" /><div className="turning-back" /></div>}
           <div className="spine-shine" />
@@ -300,6 +300,7 @@ export default function Home() {
   const [saved, setSaved] = useState(false);
   const [activeId, setActiveId] = useState(null);
   const [fullscreen, setFullscreen] = useState(false);
+  const [showPageNumbers, setShowPageNumbers] = useState(false);
   const [pdfImport, setPdfImport] = useState({ open: false, status: "idle", pages: [], frontIndex: 0, indexIndex: -1, progress: 0 });
   const maxSpread = Math.max(0, Math.ceil((pages.length - 1) / 2));
 
@@ -406,7 +407,7 @@ export default function Home() {
     setSaving(true);
     const book = {
       id: activeId || crypto.randomUUID(), title: title || "Untitled score", composer,
-      pages, audioSrc, audioName, updatedAt: new Date().toISOString()
+      pages, audioSrc, audioName, showPageNumbers, updatedAt: new Date().toISOString()
     };
     await putBook(book);
     setActiveId(book.id);
@@ -418,11 +419,13 @@ export default function Home() {
   const openBook = (book) => {
     setPages(book.pages); setTitle(book.title); setComposer(book.composer || "");
     setAudioSrc(book.audioSrc || ""); setAudioName(book.audioName || "");
+    setShowPageNumbers(Boolean(book.showPageNumbers));
     setActiveId(book.id); setSpread(1); setMode("studio");
   };
   const createNew = () => {
     setPages(SAMPLE_PAGES); setTitle("Untitled score"); setComposer("");
     setAudioSrc(""); setAudioName(""); setActiveId(null); setSpread(1); setMode("studio");
+    setShowPageNumbers(false);
   };
   const del = async (id) => { await removeBook(id); setBooks(await getBooks()); };
 
@@ -465,6 +468,13 @@ export default function Home() {
             <UploadTile icon={ImagePlus} title="Sheet music pages" detail="Select multiple pages" accept="image/*" multiple onFiles={(f) => addImages(f, "page")} />
             <UploadTile icon={FileText} title="Import complete PDF" detail="Choose cover and index after upload" accept="application/pdf,.pdf" onFiles={beginPdfImport} />
           </div>
+          <div className="book-option">
+            <div><strong>Display page numbers</strong><small>Custom numbering options are coming later.</small></div>
+            <button className={`switch ${showPageNumbers ? "on" : ""}`} role="switch" aria-checked={showPageNumbers}
+              onClick={() => { setShowPageNumbers(!showPageNumbers); setSaved(false); }}>
+              <span />
+            </button>
+          </div>
           <div className="thumb-heading"><span>Page order</span><small>Click to preview · drag coming soon</small></div>
           <div className="thumb-grid">
             {pages.map((page, i) => <PageThumb key={page.id} page={page} index={i} active={spread > 0 && (i === 1 + (spread - 1) * 2 || i === 2 + (spread - 1) * 2)}
@@ -481,7 +491,7 @@ export default function Home() {
             <div className="book-meta"><strong>{title}</strong><span>·</span><span>{pages.length} pages</span></div>
           </div>
           <BookStage pages={pages} spread={spread} tilt={tilt} setTilt={setTilt} turning={turning} setTurning={setTurning}
-            fullscreen={fullscreen} onFullscreen={() => setFullscreen(!fullscreen)} />
+            fullscreen={fullscreen} onFullscreen={() => setFullscreen(!fullscreen)} showPageNumbers={showPageNumbers} />
           <div className="reader-controls">
             <button onClick={() => go(-1)} disabled={spread <= 0}><ChevronLeft size={21} /></button>
             <div><strong>{spread === 0 ? "Front cover" : `Pages ${1 + (spread - 1) * 2}–${Math.min(pages.length - 1, 2 + (spread - 1) * 2)}`}</strong>
