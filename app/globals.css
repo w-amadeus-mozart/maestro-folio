@@ -371,3 +371,11 @@ button { cursor: pointer; }
   .preview-panel { height: 720px; }
   .editor-titlebar { padding: 0 15px; }
 }
+
+.storage-notice { position: fixed; top: 82px; right: 18px; z-index: 180; width: min(390px, calc(100vw - 36px)); padding: 13px 13px 13px 15px; display: grid; grid-template-columns: minmax(0,1fr) 28px; gap: 10px; border: 1px solid #d1bd86; border-radius: 9px; background: #fff8df; box-shadow: 0 12px 35px rgba(45,39,28,.2); }
+.storage-notice.error { border-color: #d7a39d; background: #fff0ed; }
+.storage-notice strong { display: block; margin-bottom: 3px; color: #5d4821; font-size: 10px; }
+.storage-notice.error strong { color: #8d3932; }
+.storage-notice p { margin: 0; color: #77694c; font-size: 9px; line-height: 1.45; }
+.storage-notice.error p { color: #77504c; }
+.storage-notice button { width: 28px; height: 28px; padding: 0; display: grid; place-items: center; border: 0; border-radius: 50%; color: #806e49; background: rgba(255,255,255,.65); }

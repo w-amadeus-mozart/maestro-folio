@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -8,6 +8,15 @@ import {
   Trash2, Upload, Volume2, VolumeX, X
 } from "lucide-react";
 
+import {
+  deleteBook,
+  getStorageStatus,
+  listBookSummaries,
+  loadBook,
+  revokeObjectUrls,
+  saveBook
+} from "../src/features/books/book-repository.js";
+import { pageIdToSpread, spreadToPageId } from "../src/features/books/book-migrations.js";
 const SAMPLE_PAGES = [
   { id: "cover", name: "Cover", kind: "cover", src: "/cover.svg" },
   { id: "index", name: "Contents", kind: "index", src: "/index.svg" },
@@ -16,41 +25,6 @@ const SAMPLE_PAGES = [
   { id: "page-3", name: "Moonlight III", kind: "page", src: "/sheet-3.svg" },
   { id: "page-4", name: "Moonlight IV", kind: "page", src: "/sheet-4.svg" },
 ];
-
-function openDB() {
-  return new Promise((resolve, reject) => {
-    const req = indexedDB.open("maestro-folio", 1);
-    req.onupgradeneeded = () => req.result.createObjectStore("books", { keyPath: "id" });
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
-  });
-}
-
-async function getBooks() {
-  const db = await openDB();
-  return new Promise((resolve) => {
-    const req = db.transaction("books").objectStore("books").getAll();
-    req.onsuccess = () => resolve(req.result || []);
-  });
-}
-
-async function putBook(book) {
-  const db = await openDB();
-  return new Promise((resolve) => {
-    const tx = db.transaction("books", "readwrite");
-    tx.objectStore("books").put(book);
-    tx.oncomplete = resolve;
-  });
-}
-
-async function removeBook(id) {
-  const db = await openDB();
-  return new Promise((resolve) => {
-    const tx = db.transaction("books", "readwrite");
-    tx.objectStore("books").delete(id);
-    tx.oncomplete = resolve;
-  });
-}
 
 const readFile = (file) => new Promise((resolve) => {
   const reader = new FileReader();
@@ -207,7 +181,7 @@ function LibraryView({ books, onOpen, onDelete, onCreate }) {
               <div><h3>{book.title}</h3><p>{book.composer || "Unknown composer"}</p></div>
               <button className="delete-button" onClick={() => onDelete(book.id)}><Trash2 size={16} /></button>
             </div>
-            <div className="card-meta"><span>{book.pages?.length || 0} pages</span><span>{book.audioSrc ? "With audio" : "Score only"}</span></div>
+            <div className="card-meta"><span>{book.pageCount ?? book.pages?.length ?? 0} pages</span><span>{book.audioSrc ? "With audio" : "Score only"}</span></div>
           </article>
         ))}
         <button className="new-card" onClick={onCreate}><span><Plus size={25} /></span><strong>Create a new book</strong><small>Bring another score to life</small></button>
@@ -323,9 +297,12 @@ export default function Home() {
   const [turning, setTurning] = useState(false);
   const [audioSrc, setAudioSrc] = useState("");
   const [audioName, setAudioName] = useState("");
+  const [audioAssetId, setAudioAssetId] = useState(null);
   const [books, setBooks] = useState([]);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [saveError, setSaveError] = useState("");
+  const [storageWarning, setStorageWarning] = useState("");
   const [activeId, setActiveId] = useState(null);
   const [fullscreen, setFullscreen] = useState(false);
   const [showPageNumbers, setShowPageNumbers] = useState(false);
@@ -335,11 +312,42 @@ export default function Home() {
   const [editorTab, setEditorTab] = useState("details");
   const [sideTab, setSideTab] = useState("pages");
   const [pdfImport, setPdfImport] = useState({ open: false, status: "idle", pages: [], frontIndex: 0, indexIndex: -1, progress: 0 });
+  const loadedUrlsRef = useRef([]);
+  const summaryUrlsRef = useRef([]);
   const maxSpread = Math.max(0, Math.ceil((pages.length - 1) / 2));
   const activeBookmark = bookmarks.find((bookmark) => bookmark.id === activeBookmarkId) || null;
-  const spreadLabel = (value) => value === 0 ? "Front cover" : `Pages ${1 + (value - 1) * 2}–${Math.min(pages.length - 1, 2 + (value - 1) * 2)}`;
+  const resolveBookmarkSpread = (bookmark) => {
+    if (!bookmark) return null;
+    if (bookmark.pageId) return pageIdToSpread(bookmark.pageId, pages);
+    return bookmark.spread ?? null;
+  };
+  const spreadLabel = (value) => value === null ? "Page removed" : value === 0 ? "Front cover" : `Pages ${1 + (value - 1) * 2}–${Math.min(pages.length - 1, 2 + (value - 1) * 2)}`;
 
-  useEffect(() => { getBooks().then(setBooks).catch(() => {}); }, []);
+  const refreshBooks = async () => {
+    const result = await listBookSummaries();
+    revokeObjectUrls(summaryUrlsRef.current);
+    summaryUrlsRef.current = result.objectUrls;
+    setBooks(result.books);
+  };
+
+  const applyLoadedBook = (book) => {
+    revokeObjectUrls(loadedUrlsRef.current);
+    loadedUrlsRef.current = book._objectUrls || [];
+    setPages(book.pages); setTitle(book.title); setComposer(book.composer || "");
+    setAudioSrc(book.audioSrc || ""); setAudioName(book.audioName || ""); setAudioAssetId(book.audioAssetId || null);
+    setShowPageNumbers(Boolean(book.showPageNumbers));
+    setBookmarks(book.bookmarks || []); setActiveBookmarkId(null);
+    setActiveId(book.id); setSpread(1); setMode("studio");
+  };
+
+  useEffect(() => {
+    refreshBooks().catch((error) => setSaveError(error.message));
+    return () => {
+      revokeObjectUrls(loadedUrlsRef.current);
+      revokeObjectUrls(summaryUrlsRef.current);
+    };
+  }, []);
+
   useEffect(() => {
     const key = (e) => {
       if (e.key === "ArrowRight") go(1);
@@ -431,6 +439,7 @@ export default function Home() {
     setSaved(false);
     setActiveId(null);
     setBookmarks([]); setActiveBookmarkId(null);
+    revokeObjectUrls(loadedUrlsRef.current); loadedUrlsRef.current = [];
     if (!title || title === "Untitled score") setTitle(pdfImport.fileName.replace(/\.pdf$/i, ""));
     setPdfImport((current) => ({ ...current, open: false }));
   };
@@ -438,6 +447,7 @@ export default function Home() {
     setBookmarkDraft({
       id: crypto.randomUUID(),
       name: `Piece ${bookmarks.length + 1}`,
+      pageId: spreadToPageId(spread, pages),
       spread,
       audioSrc: "",
       audioName: ""
@@ -459,7 +469,9 @@ export default function Home() {
   };
 
   const openBookmark = (bookmark) => {
-    setSpread(Math.max(0, Math.min(maxSpread, bookmark.spread)));
+    const destination = resolveBookmarkSpread(bookmark);
+    if (destination === null) return;
+    setSpread(Math.max(0, Math.min(maxSpread, destination)));
     setActiveBookmarkId(bookmark.id);
   };
 
@@ -473,43 +485,64 @@ export default function Home() {
     if (!activeBookmark) return pickAudio(file);
     const src = await readFile(file);
     setBookmarks((current) => current.map((bookmark) => bookmark.id === activeBookmark.id
-      ? { ...bookmark, audioSrc: src, audioName: file.name }
+      ? { ...bookmark, audioSrc: src, audioName: file.name, audioAssetId: null }
       : bookmark));
     setSaved(false);
   };
   const pickAudio = async (file) => {
     setAudioSrc(await readFile(file));
     setAudioName(file.name);
+    setAudioAssetId(null);
     setSaved(false);
   };
 
   const save = async () => {
-    setSaving(true);
-    const book = {
-      id: activeId || crypto.randomUUID(), title: title || "Untitled score", composer,
-      pages, audioSrc, audioName, showPageNumbers, bookmarks, updatedAt: new Date().toISOString()
-    };
-    await putBook(book);
-    setActiveId(book.id);
-    setBooks(await getBooks());
-    setSaving(false); setSaved(true);
-    setTimeout(() => setSaved(false), 2200);
+    setSaving(true); setSaveError(""); setStorageWarning("");
+    const bookId = activeId || crypto.randomUUID();
+    try {
+      await saveBook({
+        id: bookId, title: title || "Untitled score", composer,
+        pages, audioSrc, audioName, audioAssetId, showPageNumbers, bookmarks,
+        updatedAt: new Date().toISOString()
+      });
+      const hydrated = await loadBook(bookId);
+      applyLoadedBook(hydrated);
+      await refreshBooks();
+      const storage = await getStorageStatus();
+      if (storage.ratio > 0.8) setStorageWarning(`Browser storage is ${Math.round(storage.ratio * 100)}% full. Export or remove books soon.`);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2200);
+    } catch (error) {
+      setSaveError(error?.message || "The book could not be saved. Please retry.");
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const openBook = (book) => {
-    setPages(book.pages); setTitle(book.title); setComposer(book.composer || "");
-    setAudioSrc(book.audioSrc || ""); setAudioName(book.audioName || "");
-    setShowPageNumbers(Boolean(book.showPageNumbers));
-    setBookmarks(book.bookmarks || []); setActiveBookmarkId(null);
-    setActiveId(book.id); setSpread(1); setMode("studio");
+  const openBook = async (summary) => {
+    setSaveError("");
+    try {
+      const book = await loadBook(summary.id);
+      applyLoadedBook(book);
+    } catch (error) {
+      setSaveError(error?.message || "The book could not be opened.");
+    }
   };
   const createNew = () => {
+    revokeObjectUrls(loadedUrlsRef.current); loadedUrlsRef.current = [];
     setPages(SAMPLE_PAGES); setTitle("Untitled score"); setComposer("");
-    setAudioSrc(""); setAudioName(""); setActiveId(null); setSpread(1); setMode("studio");
-    setShowPageNumbers(false);
+    setAudioSrc(""); setAudioName(""); setAudioAssetId(null); setActiveId(null); setSpread(1); setMode("studio");
+    setShowPageNumbers(false); setSaveError(""); setStorageWarning("");
     setBookmarks([]); setActiveBookmarkId(null); setBookmarkDraft(null);
   };
-  const del = async (id) => { await removeBook(id); setBooks(await getBooks()); };
+  const del = async (id) => {
+    try {
+      await deleteBook(id);
+      await refreshBooks();
+    } catch (error) {
+      setSaveError(error?.message || "The book could not be deleted.");
+    }
+  };
 
   return (
     <div className="app-shell">
@@ -532,6 +565,10 @@ export default function Home() {
         </div>
       </header>
 
+      {(saveError || storageWarning) && <div className={`storage-notice ${saveError ? "error" : "warning"}`} role="alert">
+        <div><strong>{saveError ? "Storage action failed" : "Storage warning"}</strong><p>{saveError || storageWarning}</p></div>
+        <button onClick={() => { setSaveError(""); setStorageWarning(""); }} aria-label="Dismiss notification"><X size={15} /></button>
+      </div>}
       {mode === "library" ? <LibraryView books={books} onOpen={openBook} onDelete={del} onCreate={createNew} /> :
       <main className="workspace">
         <section className="editor-panel">
@@ -585,7 +622,7 @@ export default function Home() {
               <p className="bookmark-current">Current location: <strong>{spreadLabel(spread)}</strong></p>
               {bookmarks.length === 0 ? <div className="bookmark-empty"><Bookmark size={18} /><span>No bookmarks yet</span><small>Save a cover, index, or named piece.</small></div> :
               <div className="bookmark-list">{bookmarks.map((bookmark) => <article className={`bookmark-row ${activeBookmarkId === bookmark.id ? "active" : ""}`} key={bookmark.id}>
-                <button className="bookmark-open" onClick={() => openBookmark(bookmark)}><span className="bookmark-pin"><Bookmark size={14} fill="currentColor" /></span><span><strong>{bookmark.name}</strong><small>{spreadLabel(bookmark.spread)}{bookmark.audioName ? ` · ${bookmark.audioName}` : " · No audio"}</small></span></button>
+                <button className="bookmark-open" onClick={() => openBookmark(bookmark)}><span className="bookmark-pin"><Bookmark size={14} fill="currentColor" /></span><span><strong>{bookmark.name}</strong><small>{spreadLabel(resolveBookmarkSpread(bookmark))}{bookmark.audioName ? ` · ${bookmark.audioName}` : " · No audio"}</small></span></button>
                 <button className="bookmark-delete" onClick={() => deleteBookmark(bookmark.id)} aria-label={`Delete ${bookmark.name}`}><Trash2 size={13} /></button>
               </article>)}</div>}
             </div>}
@@ -631,7 +668,7 @@ export default function Home() {
             <div className="side-bookmark-list">
               {bookmarks.length === 0 ? <div className="side-empty"><Bookmark size={21} /><strong>No bookmarks</strong><small>Navigate to a page and add one.</small></div> : bookmarks.map((bookmark) =>
                 <button key={bookmark.id} className={activeBookmarkId === bookmark.id ? "active" : ""} onClick={() => openBookmark(bookmark)}>
-                  <span><Bookmark size={14} fill="currentColor" /></span><div><strong>{bookmark.name}</strong><small>{spreadLabel(bookmark.spread)}{bookmark.audioName ? " · Audio" : ""}</small></div><ChevronRight size={14} />
+                  <span><Bookmark size={14} fill="currentColor" /></span><div><strong>{bookmark.name}</strong><small>{spreadLabel(resolveBookmarkSpread(bookmark))}{bookmark.audioName ? " · Audio" : ""}</small></div><ChevronRight size={14} />
                 </button>)}
             </div>
           </>}
