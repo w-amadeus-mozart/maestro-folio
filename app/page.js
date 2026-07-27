@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  ArrowLeft, BookOpen, Check, ChevronLeft, ChevronRight, CircleHelp,
+  ArrowLeft, Bookmark, BookmarkPlus, BookOpen, Check, ChevronLeft, ChevronRight, CircleHelp,
   FileImage, FileText, GripVertical, Headphones, ImagePlus, Library, Loader2,
   Maximize2, Menu, Music2, Pause, Play, Plus, Rotate3D, Save, Sparkles,
   Trash2, Upload, Volume2, VolumeX, X
@@ -285,6 +285,34 @@ function PdfImportModal({ state, setState, onConfirm, onClose }) {
     </div>
   );
 }
+function BookmarkModal({ draft, setDraft, location, onConfirm, onClose, onAudio }) {
+  const audioInput = useRef(null);
+  if (!draft) return null;
+  return (
+    <div className="bookmark-modal-backdrop" role="dialog" aria-modal="true" aria-label="Add bookmark">
+      <div className="bookmark-modal">
+        <div className="bookmark-modal-icon"><BookmarkPlus size={23} /></div>
+        <button className="bookmark-modal-close" onClick={onClose} aria-label="Close"><X size={17} /></button>
+        <span className="eyebrow">NEW BOOKMARK</span>
+        <h2>Name this piece</h2>
+        <p className="bookmark-location"><Bookmark size={13} /> {location}</p>
+        <label className="field"><span>Bookmark name</span>
+          <input autoFocus value={draft.name} placeholder="e.g. Piece 10 · Amazing Grace"
+            onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value }))} />
+        </label>
+        <div className="bookmark-audio-field">
+          <div><span>Audio file</span><strong>{draft.audioName || "A recording is required"}</strong><small>MP3, WAV or M4A</small></div>
+          <button onClick={() => audioInput.current?.click()}><Headphones size={15} /> {draft.audioSrc ? "Replace" : "Choose audio"}</button>
+          <input ref={audioInput} hidden type="file" accept="audio/*" onChange={(event) => event.target.files[0] && onAudio(event.target.files[0])} />
+        </div>
+        <div className="bookmark-modal-actions">
+          <button className="pdf-cancel" onClick={onClose}>Cancel</button>
+          <button className="primary" disabled={!draft.name.trim() || !draft.audioSrc} onClick={onConfirm}><BookmarkPlus size={16} /> Add bookmark</button>
+        </div>
+      </div>
+    </div>
+  );
+}
 export default function Home() {
   const [mode, setMode] = useState("studio");
   const [pages, setPages] = useState(SAMPLE_PAGES);
@@ -301,8 +329,13 @@ export default function Home() {
   const [activeId, setActiveId] = useState(null);
   const [fullscreen, setFullscreen] = useState(false);
   const [showPageNumbers, setShowPageNumbers] = useState(false);
+  const [bookmarks, setBookmarks] = useState([]);
+  const [activeBookmarkId, setActiveBookmarkId] = useState(null);
+  const [bookmarkDraft, setBookmarkDraft] = useState(null);
   const [pdfImport, setPdfImport] = useState({ open: false, status: "idle", pages: [], frontIndex: 0, indexIndex: -1, progress: 0 });
   const maxSpread = Math.max(0, Math.ceil((pages.length - 1) / 2));
+  const activeBookmark = bookmarks.find((bookmark) => bookmark.id === activeBookmarkId) || null;
+  const spreadLabel = (value) => value === 0 ? "Front cover" : `Pages ${1 + (value - 1) * 2}–${Math.min(pages.length - 1, 2 + (value - 1) * 2)}`;
 
   useEffect(() => { getBooks().then(setBooks).catch(() => {}); }, []);
   useEffect(() => {
@@ -319,6 +352,7 @@ export default function Home() {
     if (turning) return;
     const next = Math.max(0, Math.min(maxSpread, spread + delta));
     if (next === spread) return;
+    setActiveBookmarkId(null);
     setTurning(delta > 0 ? "next" : "prev");
     setTimeout(() => setSpread(next), 280);
     setTimeout(() => setTurning(false), 620);
@@ -394,8 +428,52 @@ export default function Home() {
     setSpread(0);
     setSaved(false);
     setActiveId(null);
+    setBookmarks([]); setActiveBookmarkId(null);
     if (!title || title === "Untitled score") setTitle(pdfImport.fileName.replace(/\.pdf$/i, ""));
     setPdfImport((current) => ({ ...current, open: false }));
+  };
+  const openBookmarkCreator = () => {
+    setBookmarkDraft({
+      id: crypto.randomUUID(),
+      name: `Piece ${bookmarks.length + 1}`,
+      spread,
+      audioSrc: "",
+      audioName: ""
+    });
+  };
+
+  const attachBookmarkAudio = async (file) => {
+    const src = await readFile(file);
+    setBookmarkDraft((current) => ({ ...current, audioSrc: src, audioName: file.name }));
+  };
+
+  const confirmBookmark = () => {
+    if (!bookmarkDraft?.name.trim() || !bookmarkDraft.audioSrc) return;
+    const bookmark = { ...bookmarkDraft, name: bookmarkDraft.name.trim() };
+    setBookmarks((current) => [...current, bookmark]);
+    setActiveBookmarkId(bookmark.id);
+    setBookmarkDraft(null);
+    setSaved(false);
+  };
+
+  const openBookmark = (bookmark) => {
+    setSpread(Math.max(0, Math.min(maxSpread, bookmark.spread)));
+    setActiveBookmarkId(bookmark.id);
+  };
+
+  const deleteBookmark = (id) => {
+    setBookmarks((current) => current.filter((bookmark) => bookmark.id !== id));
+    if (activeBookmarkId === id) setActiveBookmarkId(null);
+    setSaved(false);
+  };
+
+  const pickPlayerAudio = async (file) => {
+    if (!activeBookmark) return pickAudio(file);
+    const src = await readFile(file);
+    setBookmarks((current) => current.map((bookmark) => bookmark.id === activeBookmark.id
+      ? { ...bookmark, audioSrc: src, audioName: file.name }
+      : bookmark));
+    setSaved(false);
   };
   const pickAudio = async (file) => {
     setAudioSrc(await readFile(file));
@@ -407,7 +485,7 @@ export default function Home() {
     setSaving(true);
     const book = {
       id: activeId || crypto.randomUUID(), title: title || "Untitled score", composer,
-      pages, audioSrc, audioName, showPageNumbers, updatedAt: new Date().toISOString()
+      pages, audioSrc, audioName, showPageNumbers, bookmarks, updatedAt: new Date().toISOString()
     };
     await putBook(book);
     setActiveId(book.id);
@@ -420,12 +498,14 @@ export default function Home() {
     setPages(book.pages); setTitle(book.title); setComposer(book.composer || "");
     setAudioSrc(book.audioSrc || ""); setAudioName(book.audioName || "");
     setShowPageNumbers(Boolean(book.showPageNumbers));
+    setBookmarks(book.bookmarks || []); setActiveBookmarkId(null);
     setActiveId(book.id); setSpread(1); setMode("studio");
   };
   const createNew = () => {
     setPages(SAMPLE_PAGES); setTitle("Untitled score"); setComposer("");
     setAudioSrc(""); setAudioName(""); setActiveId(null); setSpread(1); setMode("studio");
     setShowPageNumbers(false);
+    setBookmarks([]); setActiveBookmarkId(null); setBookmarkDraft(null);
   };
   const del = async (id) => { await removeBook(id); setBooks(await getBooks()); };
 
@@ -478,11 +558,33 @@ export default function Home() {
           <div className="thumb-heading"><span>Page order</span><small>Click to preview · drag coming soon</small></div>
           <div className="thumb-grid">
             {pages.map((page, i) => <PageThumb key={page.id} page={page} index={i} active={spread > 0 && (i === 1 + (spread - 1) * 2 || i === 2 + (spread - 1) * 2)}
-              onClick={() => setSpread(i === 0 ? 0 : Math.ceil(i / 2))}
+              onClick={() => { setSpread(i === 0 ? 0 : Math.ceil(i / 2)); setActiveBookmarkId(null); }}
               onRemove={() => { setPages(pages.filter(x => x.id !== page.id)); setSpread(0); }} />)}
             <button className="add-thumb" onClick={() => document.querySelectorAll('input[type=file]')[2]?.click()}><Plus size={19} /><span>Add</span></button>
           </div>
-          <div className="tip"><Headphones size={17} /><p><strong>Add a recording</strong><br />Pair the score with audio for practice or performance.</p></div>
+          <div className="bookmark-section">
+            <div className="bookmark-heading">
+              <div><span className="eyebrow">NAVIGATION</span><h3>Bookmarks</h3></div>
+              <button onClick={openBookmarkCreator}><BookmarkPlus size={14} /> Add</button>
+            </div>
+            <p className="bookmark-current">Bookmarking: <strong>{spreadLabel(spread)}</strong></p>
+            {bookmarks.length === 0 ? (
+              <div className="bookmark-empty"><Bookmark size={18} /><span>No bookmarks yet</span><small>Save named pieces and their recordings here.</small></div>
+            ) : (
+              <div className="bookmark-list">
+                {bookmarks.map((bookmark) => (
+                  <article className={`bookmark-row ${activeBookmarkId === bookmark.id ? "active" : ""}`} key={bookmark.id}>
+                    <button className="bookmark-open" onClick={() => openBookmark(bookmark)}>
+                      <span className="bookmark-pin"><Bookmark size={14} fill="currentColor" /></span>
+                      <span><strong>{bookmark.name}</strong><small>{spreadLabel(bookmark.spread)} · {bookmark.audioName}</small></span>
+                    </button>
+                    <button className="bookmark-delete" onClick={() => deleteBookmark(bookmark.id)} aria-label={`Delete ${bookmark.name}`}><Trash2 size={13} /></button>
+                  </article>
+                ))}
+              </div>
+            )}
+          </div>
+          <div className="tip"><Headphones size={17} /><p><strong>Bookmark audio</strong><br />Open a bookmark to load its recording in the player.</p></div>
         </section>
 
         <section className="preview-panel">
@@ -498,10 +600,18 @@ export default function Home() {
               <small>{spread + 1} of {maxSpread + 1}</small></div>
             <button onClick={() => go(1)} disabled={spread >= maxSpread}><ChevronRight size={21} /></button>
           </div>
-          <AudioBar audioSrc={audioSrc} audioName={audioName} onPick={pickAudio} />
+          <AudioBar key={activeBookmark?.id || "book-audio"} audioSrc={activeBookmark?.audioSrc || audioSrc}
+            audioName={activeBookmark ? `${activeBookmark.name} · ${activeBookmark.audioName}` : audioName} onPick={pickPlayerAudio} />
         </section>
       </main>}
-      <PdfImportModal
+      <BookmarkModal
+        draft={bookmarkDraft}
+        setDraft={setBookmarkDraft}
+        location={spreadLabel(bookmarkDraft?.spread ?? spread)}
+        onAudio={attachBookmarkAudio}
+        onConfirm={confirmBookmark}
+        onClose={() => setBookmarkDraft(null)}
+      />      <PdfImportModal
         state={pdfImport}
         setState={setPdfImport}
         onConfirm={confirmPdfImport}
