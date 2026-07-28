@@ -18,6 +18,8 @@
 > bookmark list views are likewise isolated under `src/features/bookmarks`.
 > PDF.js rendering, progress/error state, role selection, modal UI, and tested
 > cover/index ordering now live under `src/features/importer`.
+> Reader geometry, page-turn timing, tilt/fullscreen state, 3D stage rendering,
+> and tested spread boundaries now live under `src/features/reader`.
 > Cloud synchronization and user accounts remain out of scope.
 
 ## 1. Executive summary

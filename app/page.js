@@ -2,9 +2,9 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  Bookmark, BookmarkPlus, Check, ChevronLeft, ChevronRight, CircleHelp,
+  Bookmark, BookmarkPlus, Check, CircleHelp,
   FileImage, FileText, GripVertical, Headphones, ImagePlus, Library, Loader2,
-  Maximize2, Menu, Music2, Pause, Play, Plus, Rotate3D, Save, Sparkles,
+  Menu, Music2, Pause, Play, Plus, Save, Sparkles,
   Volume2, VolumeX, X
 } from "lucide-react";
 
@@ -20,6 +20,9 @@ import { useBookmarks } from "../src/features/bookmarks/use-bookmarks.js";
 import { BookmarkEditor, BookmarkModal, BookmarkSidebar } from "../src/features/bookmarks/BookmarkViews.js";
 import { usePdfImport } from "../src/features/importer/use-pdf-import.js";
 import { PdfImportModal } from "../src/features/importer/PdfImportModal.js";
+import { useReaderNavigation } from "../src/features/reader/use-reader-navigation.js";
+import { readerSpreadLabel } from "../src/features/reader/reader-geometry.js";
+import { BookStage, ReaderControls } from "../src/features/reader/ReaderViews.js";
 const SAMPLE_PAGES = [
   { id: "cover", name: "Cover", kind: "cover", src: "/cover.svg" },
   { id: "index", name: "Contents", kind: "index", src: "/index.svg" },
@@ -58,73 +61,6 @@ function PageThumb({ page, index, active, onClick, onRemove }) {
       <button className="thumb-remove" aria-label="Remove page" onClick={(e) => { e.stopPropagation(); onRemove(); }}>
         <X size={12} />
       </button>
-    </div>
-  );
-}
-
-function BookStage({ pages, spread, tilt, setTilt, turning, setTurning, fullscreen, onFullscreen, showPageNumbers }) {
-  const stage = useRef(null);
-  const dragging = useRef(false);
-  const start = useRef({ x: 0, y: 0, rx: 0, ry: 0 });
-  const [bookAspect, setBookAspect] = useState(1.414);
-  const totalSpreads = Math.max(1, Math.ceil((pages.length - 1) / 2));
-  const safeSpread = Math.min(spread, totalSpreads);
-  const leftIndex = safeSpread === 0 ? 0 : 1 + (safeSpread - 1) * 2;
-  const rightIndex = safeSpread === 0 ? null : leftIndex + 1;
-  const left = pages[leftIndex] || pages[0];
-  const right = rightIndex !== null ? pages[rightIndex] : null;
-
-  const down = (e) => {
-    if (e.target.closest(".stage-button")) return;
-    dragging.current = true;
-    start.current = { x: e.clientX, y: e.clientY, rx: tilt.x, ry: tilt.y };
-    e.currentTarget.setPointerCapture(e.pointerId);
-  };
-  const move = (e) => {
-    if (!dragging.current) return;
-    setTilt({
-      x: Math.max(-18, Math.min(18, start.current.rx - (e.clientY - start.current.y) * .08)),
-      y: Math.max(-28, Math.min(28, start.current.ry + (e.clientX - start.current.x) * .1))
-    });
-  };
-  const up = () => dragging.current = false;
-  const measurePage = (event) => {
-    const image = event.currentTarget;
-    if (!image.naturalWidth || !image.naturalHeight) return;
-    const spreadAspect = (image.naturalWidth / image.naturalHeight) * 2;
-    setBookAspect(Math.max(1.1, Math.min(2.2, spreadAspect)));
-  };
-
-  return (
-    <div ref={stage} className={`book-stage ${fullscreen ? "stage-fullscreen" : ""}`}
-      onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up}>
-      <div className="stage-toolbar">
-        <span><Rotate3D size={15} /> Drag to explore</span>
-        <button className="stage-button" onClick={() => setTilt({ x: 7, y: -4 })}>Reset view</button>
-        <button className="stage-button icon-only" onClick={onFullscreen}><Maximize2 size={15} /></button>
-      </div>
-      <div className="ambient-glow" />
-      <div className={`book-wrap ${turning ? "is-turning" : ""}`}
-        style={{
-          "--book-aspect": bookAspect,
-          transform: `rotateX(${tilt.x}deg) rotateY(${tilt.y}deg)`
-        }}>
-        <div className={`book ${right ? "open" : "closed"}`}>
-          <div className="page-stack left-stack" style={{ "--stack": Math.min(14, leftIndex) }} />
-          <div className="page-stack right-stack" style={{ "--stack": Math.min(14, pages.length - leftIndex) }} />
-          <div className="book-page left-page">
-            <img src={left?.src} alt={left?.name || "Book page"} onLoad={measurePage} />
-            {showPageNumbers && safeSpread > 0 && <span className="page-no">{leftIndex}</span>}
-          </div>
-          {right && <div className="book-page right-page">
-            <img src={right.src} alt={right.name} />
-            {showPageNumbers && <span className="page-no">{rightIndex}</span>}
-          </div>}
-          {turning && <div className="turning-page"><div className="turning-front" /><div className="turning-back" /></div>}
-          <div className="spine-shine" />
-        </div>
-      </div>
-      <span className="stage-hint">Click the arrows or use your keyboard to turn pages</span>
     </div>
   );
 }
@@ -170,9 +106,6 @@ export default function Home() {
   const [pages, setPages] = useState(SAMPLE_PAGES);
   const [title, setTitle] = useState("Moonlight Sonata");
   const [composer, setComposer] = useState("Ludwig van Beethoven");
-  const [spread, setSpread] = useState(1);
-  const [tilt, setTilt] = useState({ x: 7, y: -4 });
-  const [turning, setTurning] = useState(false);
   const [audioSrc, setAudioSrc] = useState("");
   const [audioName, setAudioName] = useState("");
   const [audioAssetId, setAudioAssetId] = useState(null);
@@ -181,7 +114,6 @@ export default function Home() {
   const [saveError, setSaveError] = useState("");
   const [storageWarning, setStorageWarning] = useState("");
   const [activeId, setActiveId] = useState(null);
-  const [fullscreen, setFullscreen] = useState(false);
   const [showPageNumbers, setShowPageNumbers] = useState(false);
   const [editorTab, setEditorTab] = useState("details");
   const [sideTab, setSideTab] = useState("pages");
@@ -190,7 +122,10 @@ export default function Home() {
     books, importing, libraryError, transferNotice, clearLibraryMessages,
     refreshBooks, removeBook, exportBook, importBook
   } = useBookLibrary();
-  const maxSpread = Math.max(0, Math.ceil((pages.length - 1) / 2));
+  const {
+    spread, setSpread, tilt, setTilt, turning, fullscreen, maxSpread,
+    go, jumpToPage, resetView, toggleFullscreen, closeFullscreen
+  } = useReaderNavigation(pages.length);
   const {
     bookmarks, activeBookmarkId, activeBookmark, bookmarkDraft, resolveBookmarkSpread,
     resetBookmarks, clearActiveBookmark, openBookmarkCreator, closeBookmarkCreator,
@@ -210,7 +145,10 @@ export default function Home() {
   const {
     pdfImport, beginPdfImport, chooseCover, chooseIndex, closePdfImport, confirmPdfImport
   } = usePdfImport(acceptPdfImport);
-  const spreadLabel = (value) => value === null ? "Page removed" : value === 0 ? "Front cover" : `Pages ${1 + (value - 1) * 2}–${Math.min(pages.length - 1, 2 + (value - 1) * 2)}`;
+  const spreadLabel = (value) => readerSpreadLabel(value, pages.length);
+  const navigateReader = (delta) => {
+    if (go(delta)) clearActiveBookmark();
+  };
 
   const applyLoadedBook = (book) => {
     revokeObjectUrls(loadedUrlsRef.current);
@@ -228,23 +166,13 @@ export default function Home() {
 
   useEffect(() => {
     const key = (e) => {
-      if (e.key === "ArrowRight") go(1);
-      if (e.key === "ArrowLeft") go(-1);
-      if (e.key === "Escape") setFullscreen(false);
+      if (e.key === "ArrowRight") navigateReader(1);
+      if (e.key === "ArrowLeft") navigateReader(-1);
+      if (e.key === "Escape") closeFullscreen();
     };
     window.addEventListener("keydown", key);
     return () => window.removeEventListener("keydown", key);
   });
-
-  const go = (delta) => {
-    if (turning) return;
-    const next = Math.max(0, Math.min(maxSpread, spread + delta));
-    if (next === spread) return;
-    clearActiveBookmark();
-    setTurning(delta > 0 ? "next" : "prev");
-    setTimeout(() => setSpread(next), 280);
-    setTimeout(() => setTurning(false), 620);
-  };
 
   const addImages = async (files, kind = "page") => {
     const mapped = await Promise.all(files.map(async (file, i) => ({
@@ -405,13 +333,10 @@ export default function Home() {
             <div><span className="live-dot" /> 3D BOOK PREVIEW</div>
             <div className="book-meta"><strong>{title}</strong><span>·</span><span>{spreadLabel(spread)}</span></div>
           </div>
-          <BookStage pages={pages} spread={spread} tilt={tilt} setTilt={setTilt} turning={turning} setTurning={setTurning}
-            fullscreen={fullscreen} onFullscreen={() => setFullscreen(!fullscreen)} showPageNumbers={showPageNumbers} />
-          <div className="reader-controls">
-            <button onClick={() => go(-1)} disabled={spread <= 0}><ChevronLeft size={21} /></button>
-            <div><strong>{spreadLabel(spread)}</strong><small>{spread + 1} of {maxSpread + 1}</small></div>
-            <button onClick={() => go(1)} disabled={spread >= maxSpread}><ChevronRight size={21} /></button>
-          </div>
+          <BookStage pages={pages} spread={spread} tilt={tilt} setTilt={setTilt} turning={turning}
+            fullscreen={fullscreen} onFullscreen={toggleFullscreen} onResetView={resetView} showPageNumbers={showPageNumbers} />
+          <ReaderControls spread={spread} maxSpread={maxSpread} label={spreadLabel(spread)}
+            onPrevious={() => navigateReader(-1)} onNext={() => navigateReader(1)} />
           <AudioBar key={activeBookmark?.id || "book-audio"} audioSrc={activeBookmark ? activeBookmark.audioSrc : audioSrc}
             audioName={activeBookmark ? `${activeBookmark.name}${activeBookmark.audioName ? ` · ${activeBookmark.audioName}` : " · No audio attached"}` : audioName} onPick={pickPlayerAudio} />
         </section>
@@ -425,7 +350,7 @@ export default function Home() {
             <div className="side-panel-head"><span>ALL PAGES ({pages.length})</span><small>Quick jump</small></div>
             <div className="side-page-grid">
               {pages.map((page, index) => <button key={page.id} className={(spread === 0 && index === 0) || (spread > 0 && (index === 1 + (spread - 1) * 2 || index === 2 + (spread - 1) * 2)) ? "active" : ""}
-                onClick={() => { setSpread(index === 0 ? 0 : Math.ceil(index / 2)); clearActiveBookmark(); }}>
+                onClick={() => { jumpToPage(index); clearActiveBookmark(); }}>
                 <img src={page.src} alt={page.name} /><span>{page.kind === "cover" ? "Cover" : page.kind === "index" ? "Index" : index}</span>
               </button>)}
             </div>
