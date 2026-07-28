@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState } from "react";
 import { pageIdToSpread, spreadToPageId } from "../books/book-migrations.js";
 import { readAudioFile } from "../audio/audio-files.js";
 import { moveBookmark } from "./bookmark-order.js";
+import { DEFAULT_AUDIO_SETTINGS, normalizeAudioSettings } from "../audio/audio-settings.js";
 
 export function useBookmarks({ pages, spread, maxSpread, setSpread, setSaved }) {
   const [bookmarks, setBookmarks] = useState([]);
@@ -38,6 +39,7 @@ export function useBookmarks({ pages, spread, maxSpread, setSpread, setSaved }) 
       spread,
       audioSrc: "",
       audioName: "",
+      audioSettings: DEFAULT_AUDIO_SETTINGS,
       mode: "create"
     });
   }, [bookmarks.length, pages, spread]);
@@ -140,6 +142,14 @@ export function useBookmarks({ pages, spread, maxSpread, setSpread, setSaved }) 
     }
   }, [activeBookmark, setSaved]);
 
+  const updateActiveBookmarkAudioSettings = useCallback((settings) => {
+    if (!activeBookmark) return;
+    setBookmarks((current) => current.map((bookmark) => bookmark.id === activeBookmark.id
+      ? { ...bookmark, audioSettings: normalizeAudioSettings(settings) }
+      : bookmark));
+    setSaved(false);
+  }, [activeBookmark, setSaved]);
+
   return {
     bookmarks,
     activeBookmarkId,
@@ -160,6 +170,7 @@ export function useBookmarks({ pages, spread, maxSpread, setSpread, setSaved }) 
     openBookmark,
     deleteBookmark,
     reorderBookmarks,
-    replaceActiveBookmarkAudio
+    replaceActiveBookmarkAudio,
+    updateActiveBookmarkAudioSettings
   };
 }

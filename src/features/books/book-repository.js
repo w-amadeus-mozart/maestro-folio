@@ -4,6 +4,7 @@ import {
   migrateLegacyMetadata,
   spreadToPageId
 } from "./book-migrations.js";
+import { normalizeAudioSettings } from "../audio/audio-settings.js";
 import { normalizePageNumbering } from "../pages/page-numbering.js";
 
 const DB_NAME = "maestro-folio";
@@ -289,7 +290,7 @@ export async function loadBook(bookId) {
   for (const storedBookmark of record.bookmarks || []) {
     const bookmark = hydrateBookmarkLocation(storedBookmark, record.pageRefs || []);
     const audio = await getAsset(database, bookmark.audioAssetId);
-    bookmarks.push({ ...bookmark, audioSrc: objectUrl(audio, objectUrls) });
+    bookmarks.push({ ...bookmark, audioSettings: normalizeAudioSettings(bookmark.audioSettings), audioSrc: objectUrl(audio, objectUrls) });
   }
 
   return {
@@ -300,6 +301,7 @@ export async function loadBook(bookId) {
     audioAssetId: record.audioAssetId,
     audioSrc: objectUrl(audioAsset, objectUrls),
     audioName: record.audioName || "",
+    audioSettings: normalizeAudioSettings(record.audioSettings),
     pageNumbering: normalizePageNumbering(record.pageNumbering, record.showPageNumbers),
     showPageNumbers: Boolean(record.pageNumbering?.enabled ?? record.showPageNumbers),
     bookmarks,
@@ -369,7 +371,8 @@ export async function saveBook(book) {
       pageId,
       orphaned: !pageExists,
       audioAssetId: bookmarkAudioAssetId,
-      audioName: bookmark.audioName || ""
+      audioName: bookmark.audioName || "",
+      audioSettings: normalizeAudioSettings(bookmark.audioSettings)
     });
   }
 
@@ -391,6 +394,7 @@ export async function saveBook(book) {
     bookmarks,
     audioAssetId,
     audioName: book.audioName || "",
+    audioSettings: normalizeAudioSettings(book.audioSettings),
     pageNumbering: normalizePageNumbering(book.pageNumbering, book.showPageNumbers),
     showPageNumbers: Boolean(book.pageNumbering?.enabled ?? book.showPageNumbers),
     updatedAt: new Date().toISOString()
@@ -509,7 +513,8 @@ export async function importBookPackage(file) {
     pageId: bookmark?.pageId || null,
     orphaned: !pageRefs.some((page) => page.pageId === bookmark?.pageId),
     audioAssetId: remapAssetId(bookmark?.audioAssetId),
-    audioName: bookmark?.audioName || ""
+    audioName: bookmark?.audioName || "",
+    audioSettings: normalizeAudioSettings(bookmark?.audioSettings)
   }));
   const record = {
     id: newBookId,
@@ -521,6 +526,7 @@ export async function importBookPackage(file) {
     bookmarks,
     audioAssetId: remapAssetId(parsed.book.audioAssetId),
     audioName: parsed.book.audioName || "",
+    audioSettings: normalizeAudioSettings(parsed.book.audioSettings),
     pageNumbering: normalizePageNumbering(parsed.book.pageNumbering, parsed.book.showPageNumbers),
     showPageNumbers: Boolean(parsed.book.pageNumbering?.enabled ?? parsed.book.showPageNumbers),
     updatedAt: new Date().toISOString()

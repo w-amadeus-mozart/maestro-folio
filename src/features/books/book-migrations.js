@@ -1,4 +1,5 @@
 import { normalizePageNumbering } from "../pages/page-numbering.js";
+import { normalizeAudioSettings } from "../audio/audio-settings.js";
 
 export const CURRENT_BOOK_SCHEMA_VERSION = 2;
 
@@ -36,7 +37,8 @@ export function migrateLegacyMetadata(legacyBook, {
       pageId,
       orphaned: !pageId,
       audioAssetId: bookmarkAudioAssets.get(bookmark.id) || null,
-      audioName: bookmark.audioName || ""
+      audioName: bookmark.audioName || "",
+      audioSettings: normalizeAudioSettings(bookmark.audioSettings)
     };
   });
 
@@ -50,6 +52,7 @@ export function migrateLegacyMetadata(legacyBook, {
     bookmarks,
     audioAssetId,
     audioName: legacyBook.audioName || "",
+    audioSettings: normalizeAudioSettings(legacyBook.audioSettings),
     pageNumbering: normalizePageNumbering(legacyBook.pageNumbering, legacyBook.showPageNumbers),
     showPageNumbers: Boolean(legacyBook.pageNumbering?.enabled ?? legacyBook.showPageNumbers),
     updatedAt: legacyBook.updatedAt || new Date().toISOString()

@@ -41,6 +41,7 @@ test("saves, exports, imports, and reopens a complete portable book", async ({ p
   await expect(page.getByRole("alert")).toHaveText("Choose an MP3, WAV, M4A, AAC, OGG, or FLAC audio file.");
   await bookAudioInput.setInputFiles(audioFile("book-tone.mp3"));
   await expect(page.locator(".audio-file-card").getByText("book-tone.mp3", { exact: true })).toBeVisible();
+  await page.getByLabel("Playback speed").selectOption("1.25");
 
   await page.getByRole("button", { name: "Next spread" }).click();
   await expect(page.getByText("Pages 3–4", { exact: true }).first()).toBeVisible();
@@ -83,7 +84,9 @@ test("saves, exports, imports, and reopens a complete portable book", async ({ p
 
   await page.getByRole("button", { name: "Add", exact: true }).click();
   await bookmarkDialog.getByLabel("Bookmark name").fill("Encore");
+  await bookmarkDialog.locator("input[type='file']").setInputFiles(audioFile("encore.mp3"));
   await bookmarkDialog.getByRole("button", { name: "Add bookmark", exact: true }).click();
+  await page.getByLabel("Playback speed").selectOption("0.75");
   await page.getByRole("button", { name: "Move Encore earlier" }).click();
   await expect(page.locator(".bookmark-row").first()).toContainText("Encore");
   page.once("dialog", (dialog) => dialog.dismiss());
@@ -120,10 +123,13 @@ test("saves, exports, imports, and reopens a complete portable book", async ({ p
   await expect(page.getByRole("combobox", { name: /^Alignment/ })).toHaveValue("inner");
   await expect(page.locator(".page-no")).toHaveText("7");
   await expect(page.locator(".audio-bar").getByText("book-tone.mp3", { exact: true })).toBeVisible();
+  await expect(page.getByLabel("Playback speed")).toHaveValue("1.25");
 
   await page.getByRole("tab", { name: "Navigation", exact: true }).click();
   await expect(page.locator(".bookmark-row")).toHaveCount(2);
   await expect(page.locator(".bookmark-row").first()).toContainText("Encore");
+  await page.locator(".bookmark-row").first().locator(".bookmark-open").click();
+  await expect(page.getByLabel("Playback speed")).toHaveValue("0.75");
   await expect(page.locator(".bookmark-row").nth(1)).toContainText("Finale");
   await expect(page.locator(".bookmark-row").nth(1)).toContainText("Pages 3–4 · No audio");
   await page.getByRole("tab", { name: "Pages", exact: true }).click();

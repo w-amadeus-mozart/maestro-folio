@@ -137,7 +137,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, [tabindex]:focu
 .reader-controls strong, .reader-controls small { display: block; }
 .reader-controls strong { font: 500 12px "Playfair Display",serif; }
 .reader-controls small { margin-top: 3px; font-size: 8px; color: #959188; }
-.audio-bar { background: #fffefa; border-top: 1px solid #dedad1; display: flex; align-items: center; gap: 12px; padding: 0 24px; }
+.audio-bar { background: #fffefa; border-top: 1px solid #dedad1; display: flex; align-items: center; align-content: center; flex-wrap: wrap; gap: 8px 12px; padding: 7px 24px; }
 .play-button { flex: 0 0 auto; border: 0; width: 35px; height: 35px; border-radius: 50%; display: grid; place-items: center; background: var(--night); color: white; padding-left: 4px; }
 .track-copy { width: 160px; }
 .track-copy strong, .track-copy small { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -147,6 +147,13 @@ button:focus-visible, input:focus-visible, select:focus-visible, [tabindex]:focu
 .time.subtle { color: #a29e96; }
 .progress { flex: 1; accent-color: var(--brass); height: 3px; }
 .volume { border: 0; background: transparent; color: #6c6963; display: grid; place-items: center; }
+.audio-practice-controls { flex: 0 0 100%; display: flex; align-items: center; justify-content: flex-end; gap: 5px; }
+.audio-practice-controls label { display: flex; align-items: center; gap: 4px; color: #777168; font-size: 8px; }
+.audio-practice-controls select, .audio-practice-controls button { height: 23px; border: 1px solid #d6d0c6; border-radius: 5px; color: #625a50; background: white; font-size: 8px; }
+.audio-practice-controls select { padding: 0 4px; }
+.audio-practice-controls button { padding: 0 7px; display: flex; align-items: center; gap: 3px; }
+.audio-practice-controls button.active { border-color: var(--brass); color: #70491d; background: #f1e5d4; }
+.audio-practice-controls :disabled { opacity: .45; cursor: default; }
 
 .library-view { padding: 58px max(34px, 7vw); min-height: calc(100vh - 72px); }
 .library-heading { display: flex; justify-content: space-between; align-items: flex-end; padding-bottom: 30px; border-bottom: 1px solid var(--line); }
@@ -343,7 +350,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, [tabindex]:focu
 .quick-actions button { min-width: 0; height: 34px; padding: 0 8px; display: flex; align-items: center; justify-content: center; gap: 6px; border: 1px solid #d8d1c6; border-radius: 6px; color: #6c573d; background: white; font-size: 8px; font-weight: 600; }
 .quick-actions button:hover { border-color: #ac8756; color: #68451c; }
 
-.preview-panel { min-width: 0; height: 100%; grid-template-rows: 44px minmax(300px,1fr) 58px 68px; border-right: 1px solid #d6d1c8; }
+.preview-panel { min-width: 0; height: 100%; grid-template-rows: 44px minmax(300px,1fr) 58px 96px; border-right: 1px solid #d6d1c8; }
 .preview-head { padding: 0 17px; background: #f2efe9; }
 .book-stage { min-width: 0; }
 .audio-bar { position: relative; z-index: 8; padding: 0 16px; }

@@ -66,14 +66,24 @@ describe("book repository", () => {
       ],
       audioSrc: audio,
       audioName: "book.mp3",
-      bookmarks: [{ id: "b1", name: "Piece", spread: 1, audioSrc: audio, audioName: "piece.mp3" }]
+      audioSettings: { playbackRate: 1.25, loopEnabled: true, loopStart: 3, loopEnd: 9 },
+      bookmarks: [{
+        id: "b1", name: "Piece", spread: 1, audioSrc: audio, audioName: "piece.mp3",
+        audioSettings: { playbackRate: 0.75, loopEnabled: true, loopStart: 2, loopEnd: 6 }
+      }]
     });
 
     const loaded = await loadBook("book-1");
     expect(loaded.pages).toHaveLength(2);
     expect(loaded.pages[0].src).toMatch(/^blob:/);
     expect(loaded.audioSrc).toMatch(/^blob:/);
-    expect(loaded.bookmarks[0]).toMatchObject({ pageId: "piece", spread: 1, orphaned: false });
+    expect(loaded.audioSettings).toEqual({ playbackRate: 1.25, loopEnabled: true, loopStart: 3, loopEnd: 9 });
+    expect(loaded.bookmarks[0]).toMatchObject({
+      pageId: "piece",
+      spread: 1,
+      orphaned: false,
+      audioSettings: { playbackRate: 0.75, loopEnabled: true, loopStart: 2, loopEnd: 6 }
+    });
 
     const { books, objectUrls } = await listBookSummaries();
     expect(books[0]).toMatchObject({ id: "book-1", pageCount: 2 });
@@ -116,8 +126,12 @@ describe("book repository", () => {
       ],
       audioSrc: audio,
       audioName: "book.mp3",
+      audioSettings: { playbackRate: 1.5, loopEnabled: true, loopStart: 4, loopEnd: 12 },
       pageNumbering: { enabled: true, startAt: 7, every: 2, position: "top", alignment: "inner" },
-      bookmarks: [{ id: "mark", name: "Piece", pageId: "piece", audioSrc: audio, audioName: "piece.mp3" }]
+      bookmarks: [{
+        id: "mark", name: "Piece", pageId: "piece", audioSrc: audio, audioName: "piece.mp3",
+        audioSettings: { playbackRate: 0.75, loopEnabled: false, loopStart: 1, loopEnd: 5 }
+      }]
     });
 
     const exported = await exportBookPackage("portable-book");
@@ -131,6 +145,7 @@ describe("book repository", () => {
     const loaded = await loadBook(imported.id);
     expect(loaded.pages.map((page) => page.id)).toEqual(["cover", "piece"]);
     expect(loaded.audioSrc).toMatch(/^blob:/);
+    expect(loaded.audioSettings).toEqual({ playbackRate: 1.5, loopEnabled: true, loopStart: 4, loopEnd: 12 });
     expect(loaded.pageNumbering).toEqual({
       enabled: true,
       startAt: 7,
@@ -142,7 +157,8 @@ describe("book repository", () => {
       name: "Piece",
       pageId: "piece",
       spread: 1,
-      audioName: "piece.mp3"
+      audioName: "piece.mp3",
+      audioSettings: { playbackRate: 0.75, loopEnabled: false, loopStart: 1, loopEnd: 5 }
     });
     expect(loaded.bookmarks[0].audioSrc).toMatch(/^blob:/);
     revokeObjectUrls(loaded._objectUrls);

@@ -56,7 +56,14 @@ describe("legacy metadata migration", () => {
     expect(migrated.bookmarks[0]).toMatchObject({
       pageId: "music-2",
       audioAssetId: "bookmark-audio",
-      orphaned: false
+      orphaned: false,
+      audioSettings: { playbackRate: 1, loopEnabled: false, loopStart: 0, loopEnd: null }
+    });
+    expect(migrated.audioSettings).toEqual({
+      playbackRate: 1,
+      loopEnabled: false,
+      loopStart: 0,
+      loopEnd: null
     });
     expect(migrated.pages).toBeUndefined();
     expect(migrated.pageNumbering).toEqual({

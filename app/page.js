@@ -88,8 +88,8 @@ export default function Home() {
   const [sideTab, setSideTab] = useState("pages");
   const loadedUrlsRef = useRef([]);
   const {
-    audioSrc, audioName, audioAssetId, audioError,
-    loadBookAudio, resetBookAudio, pickBookAudio
+    audioSrc, audioName, audioAssetId, audioSettings, audioError,
+    loadBookAudio, resetBookAudio, pickBookAudio, updateAudioSettings
   } = useBookAudio(setSaved);
   const {
     books, importing, libraryError, transferNotice, clearLibraryMessages,
@@ -104,7 +104,7 @@ export default function Home() {
     resetBookmarks, clearActiveBookmark, openBookmarkCreator, closeBookmarkCreator,
     renameBookmarkDraft, openBookmarkEditor, retargetBookmarkDraft, removeBookmarkDraftAudio,
     attachBookmarkAudio, confirmBookmark, openBookmark, deleteBookmark, reorderBookmarks,
-    replaceActiveBookmarkAudio
+    replaceActiveBookmarkAudio, updateActiveBookmarkAudioSettings
   } = useBookmarks({ pages, spread, maxSpread, setSpread, setSaved });
   const acceptPdfImport = ({ pages: importedPages, fileName }) => {
     setPages(importedPages);
@@ -196,7 +196,7 @@ export default function Home() {
     try {
       await saveBook({
         id: bookId, title: title || "Untitled score", composer,
-        pages, audioSrc, audioName, audioAssetId, pageNumbering, bookmarks,
+        pages, audioSrc, audioName, audioAssetId, audioSettings, pageNumbering, bookmarks,
         updatedAt: new Date().toISOString()
       });
       const hydrated = await loadBook(bookId);
@@ -330,7 +330,10 @@ export default function Home() {
           <ReaderControls spread={spread} maxSpread={maxSpread} label={spreadLabel(spread)}
             onPrevious={() => navigateReader(-1)} onNext={() => navigateReader(1)} />
           <AudioBar key={activeBookmark?.id || "book-audio"} audioSrc={activeBookmark ? activeBookmark.audioSrc : audioSrc}
-            audioName={activeBookmark ? `${activeBookmark.name}${activeBookmark.audioName ? ` · ${activeBookmark.audioName}` : " · No audio attached"}` : audioName} onPick={pickPlayerAudio} />
+            audioName={activeBookmark ? `${activeBookmark.name}${activeBookmark.audioName ? ` · ${activeBookmark.audioName}` : " · No audio attached"}` : audioName}
+            settings={activeBookmark ? activeBookmark.audioSettings : audioSettings}
+            onSettingsChange={activeBookmark ? updateActiveBookmarkAudioSettings : updateAudioSettings}
+            onPick={pickPlayerAudio} />
         </section>
 
         <aside className="side-panel">

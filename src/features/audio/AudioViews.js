@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import { Headphones, Pause, Play, Volume2, VolumeX } from "lucide-react";
+import { Headphones, Pause, Play, Repeat2, RotateCcw, Volume2, VolumeX } from "lucide-react";
 import { formatAudioTime } from "./audio-files.js";
+import { effectiveLoopRange, normalizeAudioSettings } from "./audio-settings.js";
 
-export function AudioBar({ audioSrc, audioName, onPick }) {
+export function AudioBar({ audioSrc, audioName, settings, onSettingsChange, onPick }) {
   const audio = useRef(null);
   const input = useRef(null);
   const [playing, setPlaying] = useState(false);
@@ -10,6 +11,7 @@ export function AudioBar({ audioSrc, audioName, onPick }) {
   const [duration, setDuration] = useState(0);
   const [muted, setMuted] = useState(false);
   const [playbackError, setPlaybackError] = useState("");
+  const audioSettings = normalizeAudioSettings(settings);
 
   useEffect(() => {
     setPlaying(false);
@@ -17,6 +19,13 @@ export function AudioBar({ audioSrc, audioName, onPick }) {
     setDuration(0);
     setPlaybackError("");
   }, [audioSrc]);
+
+  useEffect(() => {
+    if (audio.current) audio.current.playbackRate = audioSettings.playbackRate;
+  }, [audioSettings.playbackRate]);
+
+  const updateSettings = (changes) => onSettingsChange?.({ ...audioSettings, ...changes });
+  const loopRange = effectiveLoopRange(audioSettings, duration);
 
   const toggle = async () => {
     if (!audioSrc) return input.current?.click();
@@ -33,8 +42,18 @@ export function AudioBar({ audioSrc, audioName, onPick }) {
   return (
     <div className="audio-bar">
       <audio ref={audio} src={audioSrc || undefined}
-        onTimeUpdate={() => setTime(audio.current?.currentTime || 0)}
-        onLoadedMetadata={() => setDuration(Number.isFinite(audio.current?.duration) ? audio.current.duration : 0)}
+        onTimeUpdate={() => {
+          const current = audio.current?.currentTime || 0;
+          if (loopRange && current >= loopRange.end && audio.current) {
+            audio.current.currentTime = loopRange.start;
+            setTime(loopRange.start);
+          } else setTime(current);
+        }}
+        onLoadedMetadata={() => {
+          const nextDuration = Number.isFinite(audio.current?.duration) ? audio.current.duration : 0;
+          setDuration(nextDuration);
+          if (audio.current) audio.current.playbackRate = audioSettings.playbackRate;
+        }}
         onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)}
         onEnded={() => setPlaying(false)}
         onError={() => audioSrc && setPlaybackError("This recording could not be decoded by the browser.")} />
@@ -55,6 +74,33 @@ export function AudioBar({ audioSrc, audioName, onPick }) {
         onClick={() => { setMuted(!muted); if (audio.current) audio.current.muted = !muted; }}>
         {muted ? <VolumeX size={18} /> : <Volume2 size={18} />}
       </button>
+      <div className="audio-practice-controls" aria-label="Audio practice controls">
+        <label>Speed
+          <select aria-label="Playback speed" value={audioSettings.playbackRate}
+            disabled={!audioSrc}
+            onChange={(event) => updateSettings({ playbackRate: +event.target.value })}>
+            {[0.5, 0.75, 1, 1.25, 1.5, 2].map((rate) => <option key={rate} value={rate}>{rate}×</option>)}
+          </select>
+        </label>
+        <button className={audioSettings.loopEnabled ? "active" : ""} disabled={!audioSrc || !duration}
+          aria-pressed={audioSettings.loopEnabled} aria-label="Repeat selected loop"
+          onClick={() => updateSettings({
+            loopEnabled: !audioSettings.loopEnabled,
+            loopEnd: audioSettings.loopEnd ?? duration
+          })}>
+          <Repeat2 size={14} /> Loop
+        </button>
+        <button disabled={!audioSrc} aria-label={`Mark loop beginning at ${formatAudioTime(time)}`}
+          onClick={() => updateSettings({ loopStart: time })}>In {formatAudioTime(audioSettings.loopStart)}</button>
+        <button disabled={!audioSrc || !duration} aria-label={`Mark loop ending at ${formatAudioTime(time)}`}
+          onClick={() => updateSettings({ loopEnd: Math.max(time, audioSettings.loopStart) })}>
+          Out {formatAudioTime(audioSettings.loopEnd ?? duration)}
+        </button>
+        <button disabled={!audioSrc} aria-label="Clear loop markers"
+          onClick={() => updateSettings({ loopEnabled: false, loopStart: 0, loopEnd: null })}>
+          <RotateCcw size={13} />
+        </button>
+      </div>
     </div>
   );
 }

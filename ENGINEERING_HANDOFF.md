@@ -42,6 +42,10 @@
 > have audio replaced or removed. Bookmark order supports drag-and-drop and
 > accessible move controls, destructive deletion/audio removal is confirmed,
 > and edited order/content remains portable through save and transfer.
+> Audio practice controls now provide 0.5×–2× playback speed and reusable loop
+> start/end markers. Full-book and bookmark recordings keep independent
+> settings through save, reopen, export, and import, with keyboard-accessible
+> native controls and focused unit/end-to-end coverage.
 > Cloud synchronization and user accounts remain out of scope.
 
 ## 1. Executive summary
