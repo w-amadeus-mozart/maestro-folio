@@ -4,6 +4,7 @@ import {
   migrateLegacyMetadata,
   spreadToPageId
 } from "./book-migrations.js";
+import { normalizePageNumbering } from "../pages/page-numbering.js";
 
 const DB_NAME = "maestro-folio";
 const DB_VERSION = 2;
@@ -299,7 +300,8 @@ export async function loadBook(bookId) {
     audioAssetId: record.audioAssetId,
     audioSrc: objectUrl(audioAsset, objectUrls),
     audioName: record.audioName || "",
-    showPageNumbers: Boolean(record.showPageNumbers),
+    pageNumbering: normalizePageNumbering(record.pageNumbering, record.showPageNumbers),
+    showPageNumbers: Boolean(record.pageNumbering?.enabled ?? record.showPageNumbers),
     bookmarks,
     updatedAt: record.updatedAt,
     _objectUrls: objectUrls
@@ -389,7 +391,8 @@ export async function saveBook(book) {
     bookmarks,
     audioAssetId,
     audioName: book.audioName || "",
-    showPageNumbers: Boolean(book.showPageNumbers),
+    pageNumbering: normalizePageNumbering(book.pageNumbering, book.showPageNumbers),
+    showPageNumbers: Boolean(book.pageNumbering?.enabled ?? book.showPageNumbers),
     updatedAt: new Date().toISOString()
   };
 
@@ -518,7 +521,8 @@ export async function importBookPackage(file) {
     bookmarks,
     audioAssetId: remapAssetId(parsed.book.audioAssetId),
     audioName: parsed.book.audioName || "",
-    showPageNumbers: Boolean(parsed.book.showPageNumbers),
+    pageNumbering: normalizePageNumbering(parsed.book.pageNumbering, parsed.book.showPageNumbers),
+    showPageNumbers: Boolean(parsed.book.pageNumbering?.enabled ?? parsed.book.showPageNumbers),
     updatedAt: new Date().toISOString()
   };
 

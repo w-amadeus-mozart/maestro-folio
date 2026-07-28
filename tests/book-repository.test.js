@@ -116,6 +116,7 @@ describe("book repository", () => {
       ],
       audioSrc: audio,
       audioName: "book.mp3",
+      pageNumbering: { enabled: true, startAt: 7, every: 2, position: "top", alignment: "inner" },
       bookmarks: [{ id: "mark", name: "Piece", pageId: "piece", audioSrc: audio, audioName: "piece.mp3" }]
     });
 
@@ -130,6 +131,13 @@ describe("book repository", () => {
     const loaded = await loadBook(imported.id);
     expect(loaded.pages.map((page) => page.id)).toEqual(["cover", "piece"]);
     expect(loaded.audioSrc).toMatch(/^blob:/);
+    expect(loaded.pageNumbering).toEqual({
+      enabled: true,
+      startAt: 7,
+      every: 2,
+      position: "top",
+      alignment: "inner"
+    });
     expect(loaded.bookmarks[0]).toMatchObject({
       name: "Piece",
       pageId: "piece",

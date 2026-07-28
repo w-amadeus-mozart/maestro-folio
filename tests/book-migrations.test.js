@@ -41,6 +41,7 @@ describe("legacy metadata migration", () => {
     const legacy = {
       id: "legacy-book",
       title: "Legacy score",
+      showPageNumbers: true,
       pages: pages.map((page, index) => ({ ...page, name: `Page ${index}`, kind: index === 0 ? "cover" : "page" })),
       bookmarks: [{ id: "bookmark-1", name: "Piece", spread: 2, audioName: "piece.mp3" }]
     };
@@ -58,5 +59,12 @@ describe("legacy metadata migration", () => {
       orphaned: false
     });
     expect(migrated.pages).toBeUndefined();
+    expect(migrated.pageNumbering).toEqual({
+      enabled: true,
+      startAt: 1,
+      every: 1,
+      position: "bottom",
+      alignment: "outer"
+    });
   });
 });

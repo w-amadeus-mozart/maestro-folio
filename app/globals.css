@@ -112,7 +112,12 @@ button:focus-visible, input:focus-visible, select:focus-visible, [tabindex]:focu
 .left-page { left: 0; transform-origin: right; border-radius: 6px 0 0 5px; box-shadow: inset -18px 0 25px rgba(70,55,32,.12); }
 .right-page { right: 0; transform-origin: left; border-radius: 0 6px 5px 0; box-shadow: inset 18px 0 25px rgba(70,55,32,.12); }
 .closed .left-page { width: 100%; border-radius: 5px; box-shadow: inset -5px 0 18px rgba(0,0,0,.2); }
-.page-no { position: absolute; bottom: 3%; left: 50%; color: #8b8478; font: 9px "Playfair Display", serif; }
+.page-no { position: absolute; z-index: 2; color: #756f66; font: 9px "Playfair Display", serif; }
+.page-no.top { top: 3%; }
+.page-no.bottom { bottom: 3%; }
+.page-no.left { left: 5%; }
+.page-no.right { right: 5%; }
+.page-no.center { left: 50%; transform: translateX(-50%); }
 .page-stack { position: absolute; top: 1.2%; width: 50%; height: 98%; background: repeating-linear-gradient(0deg, #c9c1b3 0 1px, #eee8dd 1px 3px); z-index: -1; }
 .left-stack { left: calc(var(--stack) * -.35px); transform: translateZ(-5px); border-radius: 5px 0 0 5px; }
 .right-stack { right: calc(var(--stack) * -.35px); transform: translateZ(-5px); border-radius: 0 5px 5px 0; }
@@ -305,6 +310,9 @@ button:focus-visible, input:focus-visible, select:focus-visible, [tabindex]:focu
 .section-rule { margin: 25px 0 3px; border-top: 1px solid #ded9d0; }
 .section-rule span { position: relative; top: -7px; padding-right: 8px; color: var(--brass); background: #faf8f3; font-size: 8px; letter-spacing: 1.5px; font-weight: 600; }
 .book-option.tab-option { margin-top: 3px; border-top: 0; }
+.numbering-grid { margin-top: 12px; display: grid; grid-template-columns: 1fr 1.35fr; gap: 10px; }
+.numbering-grid .field { margin: 0; }
+.numbering-grid input, .numbering-grid select { width: 100%; height: 36px; padding: 0 9px; border: 1px solid #d7d3ca; border-radius: 7px; color: var(--ink); background: rgba(255,255,255,.8); font-size: 10px; }
 .detected-size { margin-top: 17px; padding: 12px; border: 1px solid #dfd8cd; border-radius: 8px; background: #f3eee6; }
 .detected-size span, .detected-size strong, .detected-size small { display: block; }
 .detected-size span { color: #948d83; font-size: 8px; }

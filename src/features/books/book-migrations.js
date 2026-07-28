@@ -1,3 +1,5 @@
+import { normalizePageNumbering } from "../pages/page-numbering.js";
+
 export const CURRENT_BOOK_SCHEMA_VERSION = 2;
 
 export function spreadToPageId(spread, pages = []) {
@@ -48,7 +50,8 @@ export function migrateLegacyMetadata(legacyBook, {
     bookmarks,
     audioAssetId,
     audioName: legacyBook.audioName || "",
-    showPageNumbers: Boolean(legacyBook.showPageNumbers),
+    pageNumbering: normalizePageNumbering(legacyBook.pageNumbering, legacyBook.showPageNumbers),
+    showPageNumbers: Boolean(legacyBook.pageNumbering?.enabled ?? legacyBook.showPageNumbers),
     updatedAt: legacyBook.updatedAt || new Date().toISOString()
   };
 }

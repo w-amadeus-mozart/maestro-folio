@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, Maximize2, Rotate3D } from "lucide-react";
 import { spreadPageIndices } from "./reader-geometry.js";
+import { pageNumberClass, pageNumberForIndex } from "../pages/page-numbering.js";
 
 export function BookStage({
   pages,
@@ -11,15 +12,17 @@ export function BookStage({
   fullscreen,
   onFullscreen,
   onResetView,
-  showPageNumbers
+  pageNumbering
 }) {
   const stage = useRef(null);
   const dragging = useRef(false);
   const start = useRef({ x: 0, y: 0, rx: 0, ry: 0 });
   const [bookAspect, setBookAspect] = useState(1.414);
-  const { spread: safeSpread, leftIndex, rightIndex } = spreadPageIndices(spread, pages.length);
+  const { leftIndex, rightIndex } = spreadPageIndices(spread, pages.length);
   const left = pages[leftIndex] || pages[0];
   const right = rightIndex !== null ? pages[rightIndex] : null;
+  const leftNumber = pageNumberForIndex(pages, leftIndex, pageNumbering);
+  const rightNumber = rightIndex === null ? null : pageNumberForIndex(pages, rightIndex, pageNumbering);
 
   const down = (event) => {
     if (event.target.closest(".stage-button")) return;
@@ -62,11 +65,11 @@ export function BookStage({
           <div className="page-stack right-stack" style={{ "--stack": Math.min(14, pages.length - leftIndex) }} />
           <div className="book-page left-page">
             <img src={left?.src} alt={left?.name || "Book page"} onLoad={measurePage} />
-            {showPageNumbers && safeSpread > 0 && <span className="page-no">{leftIndex}</span>}
+            {leftNumber !== null && <span className={pageNumberClass("left", pageNumbering)}>{leftNumber}</span>}
           </div>
           {right && <div className="book-page right-page">
             <img src={right.src} alt={right.name} />
-            {showPageNumbers && <span className="page-no">{rightIndex}</span>}
+            {rightNumber !== null && <span className={pageNumberClass("right", pageNumbering)}>{rightNumber}</span>}
           </div>}
           {turning && <div className="turning-page"><div className="turning-front" /><div className="turning-back" /></div>}
           <div className="spine-shine" />

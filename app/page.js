@@ -27,6 +27,8 @@ import { useBookAudio } from "../src/features/audio/use-book-audio.js";
 import { AudioBar, AudioEditor } from "../src/features/audio/AudioViews.js";
 import { PageGrid } from "../src/features/pages/PageGrid.js";
 import { movePage } from "../src/features/pages/page-order.js";
+import { DEFAULT_PAGE_NUMBERING, normalizePageNumbering } from "../src/features/pages/page-numbering.js";
+import { PageNumberingControls } from "../src/features/pages/PageNumberingControls.js";
 import { pageIdToSpread, spreadToPageId } from "../src/features/books/book-migrations.js";
 const SAMPLE_PAGES = [
   { id: "cover", name: "Cover", kind: "cover", src: "/cover.svg" },
@@ -81,7 +83,7 @@ export default function Home() {
   const [storageWarning, setStorageWarning] = useState("");
   const [uploadError, setUploadError] = useState("");
   const [activeId, setActiveId] = useState(null);
-  const [showPageNumbers, setShowPageNumbers] = useState(false);
+  const [pageNumbering, setPageNumbering] = useState(DEFAULT_PAGE_NUMBERING);
   const [editorTab, setEditorTab] = useState("details");
   const [sideTab, setSideTab] = useState("pages");
   const loadedUrlsRef = useRef([]);
@@ -141,7 +143,7 @@ export default function Home() {
     loadedUrlsRef.current = book._objectUrls || [];
     setPages(book.pages); setTitle(book.title); setComposer(book.composer || "");
     loadBookAudio(book);
-    setShowPageNumbers(Boolean(book.showPageNumbers));
+    setPageNumbering(normalizePageNumbering(book.pageNumbering, book.showPageNumbers));
     resetBookmarks(book.bookmarks || []);
     setActiveId(book.id); setSpread(1); setMode("studio");
   };
@@ -193,7 +195,7 @@ export default function Home() {
     try {
       await saveBook({
         id: bookId, title: title || "Untitled score", composer,
-        pages, audioSrc, audioName, audioAssetId, showPageNumbers, bookmarks,
+        pages, audioSrc, audioName, audioAssetId, pageNumbering, bookmarks,
         updatedAt: new Date().toISOString()
       });
       const hydrated = await loadBook(bookId);
@@ -223,7 +225,7 @@ export default function Home() {
     revokeObjectUrls(loadedUrlsRef.current); loadedUrlsRef.current = [];
     setPages(SAMPLE_PAGES); setTitle("Untitled score"); setComposer("");
     resetBookAudio(); setActiveId(null); setSpread(1); setMode("studio");
-    setShowPageNumbers(false); setSaveError(""); setStorageWarning(""); setUploadError("");
+    setPageNumbering(DEFAULT_PAGE_NUMBERING); setSaveError(""); setStorageWarning(""); setUploadError("");
     clearLibraryMessages();
     resetBookmarks();
   };
@@ -276,11 +278,10 @@ export default function Home() {
               <label className="field"><span>Title</span><input value={title} onChange={(e) => { setTitle(e.target.value); setSaved(false); }} /></label>
               <label className="field"><span>Composer</span><input value={composer} onChange={(e) => { setComposer(e.target.value); setSaved(false); }} /></label>
               <div className="section-rule"><span>DISPLAY OPTIONS</span></div>
-              <div className="book-option tab-option">
-                <div><strong>Display page numbers</strong><small>Turn off for scores that already include them.</small></div>
-                <button className={`switch ${showPageNumbers ? "on" : ""}`} role="switch" aria-checked={showPageNumbers}
-                  onClick={() => { setShowPageNumbers(!showPageNumbers); setSaved(false); }}><span /></button>
-              </div>
+              <PageNumberingControls value={pageNumbering} onChange={(next) => {
+                setPageNumbering(normalizePageNumbering(next));
+                setSaved(false);
+              }} />
               <div className="detected-size"><span>Detected page shape</span><strong>Automatic from upload</strong><small>The 3D book follows each page’s original proportions.</small></div>
             </div>}
 
@@ -322,7 +323,7 @@ export default function Home() {
             <div className="book-meta"><strong>{title}</strong><span>·</span><span>{spreadLabel(spread)}</span></div>
           </div>
           <BookStage pages={pages} spread={spread} tilt={tilt} setTilt={setTilt} turning={turning}
-            fullscreen={fullscreen} onFullscreen={toggleFullscreen} onResetView={resetView} showPageNumbers={showPageNumbers} />
+            fullscreen={fullscreen} onFullscreen={toggleFullscreen} onResetView={resetView} pageNumbering={pageNumbering} />
           <ReaderControls spread={spread} maxSpread={maxSpread} label={spreadLabel(spread)}
             onPrevious={() => navigateReader(-1)} onNext={() => navigateReader(1)} />
           <AudioBar key={activeBookmark?.id || "book-audio"} audioSrc={activeBookmark ? activeBookmark.audioSrc : audioSrc}

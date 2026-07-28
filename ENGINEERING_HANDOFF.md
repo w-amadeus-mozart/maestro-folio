@@ -34,6 +34,10 @@
 > move-earlier/move-later controls. Cover and index roles remain pinned, the
 > reader preserves its stable page location, and bookmarks continue resolving
 > by page ID through save, reopen, export, and import.
+> Page numbering now supports a custom start, every-Nth-page rules, top/bottom
+> placement, and outer/inner/center alignment. Cover and index pages are
+> excluded automatically, legacy books receive compatible defaults, and the
+> complete settings model survives save, reopen, export, and import.
 > Cloud synchronization and user accounts remain out of scope.
 
 ## 1. Executive summary

@@ -25,6 +25,14 @@ test("saves, exports, imports, and reopens a complete portable book", async ({ p
   await page.getByLabel("Title").fill("E2E Portable Score");
   await page.getByLabel("Composer").fill("Test Composer");
   await expect(page.getByLabel("Title")).toHaveValue("E2E Portable Score");
+  await page.getByRole("switch", { name: "Display page numbers" }).click();
+  await page.getByLabel("Start at").fill("7");
+  await page.getByRole("combobox", { name: /^Number every/ }).selectOption("2");
+  await page.getByRole("combobox", { name: /^Position/ }).selectOption("top");
+  await page.getByRole("combobox", { name: /^Alignment/ }).selectOption("inner");
+  await expect(page.locator(".page-no")).toHaveText("7");
+  await expect(page.locator(".page-no")).toHaveClass(/top/);
+  await expect(page.locator(".page-no")).toHaveClass(/left/);
 
   await page.getByRole("tab", { name: "Audio", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Book recording", exact: true })).toBeVisible();
@@ -36,6 +44,7 @@ test("saves, exports, imports, and reopens a complete portable book", async ({ p
 
   await page.getByRole("button", { name: "Next spread" }).click();
   await expect(page.getByText("Pages 3–4", { exact: true }).first()).toBeVisible();
+  await expect(page.locator(".page-no")).toHaveText("9");
   const bookmarkTrigger = page.getByRole("button", { name: "Bookmark here", exact: true });
   await bookmarkTrigger.click();
   const bookmarkDialog = page.getByRole("dialog", { name: "Name this piece" });
@@ -83,6 +92,12 @@ test("saves, exports, imports, and reopens a complete portable book", async ({ p
   await page.getByRole("tab", { name: "Details", exact: true }).click();
   await expect(page.getByLabel("Title")).toHaveValue("E2E Portable Score");
   await expect(page.getByLabel("Composer")).toHaveValue("Test Composer");
+  await expect(page.getByRole("switch", { name: "Display page numbers" })).toHaveAttribute("aria-checked", "true");
+  await expect(page.getByLabel("Start at")).toHaveValue("7");
+  await expect(page.getByRole("combobox", { name: /^Number every/ })).toHaveValue("2");
+  await expect(page.getByRole("combobox", { name: /^Position/ })).toHaveValue("top");
+  await expect(page.getByRole("combobox", { name: /^Alignment/ })).toHaveValue("inner");
+  await expect(page.locator(".page-no")).toHaveText("7");
   await expect(page.locator(".audio-bar").getByText("book-tone.mp3", { exact: true })).toBeVisible();
 
   await page.getByRole("tab", { name: "Navigation", exact: true }).click();
