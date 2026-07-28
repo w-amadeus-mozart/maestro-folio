@@ -10,8 +10,9 @@
 > with separate Blob assets, automatic v1 migration, stable page-ID bookmark
 > references, quota/error handling, and Vitest coverage. The library also supports
 > exporting and importing complete `.maestro-folio` book packages for safe
-> transfer between devices. Cloud synchronization and user accounts remain out
-> of scope.
+> transfer between devices. A Playwright Chromium test now covers the full
+> save, export, import, and reopen journey, including book and bookmark audio.
+> Cloud synchronization and user accounts remain out of scope.
 
 ## 1. Executive summary
 

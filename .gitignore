@@ -7,3 +7,5 @@ npm-debug.log*
 dist
 .vinext/
 .wrangler/
+playwright-report/
+test-results/
