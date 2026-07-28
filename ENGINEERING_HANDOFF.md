@@ -14,6 +14,8 @@
 > save, export, import, and reopen journey, including book and bookmark audio.
 > Library rendering and its list/delete/export/import lifecycle now live in
 > dedicated feature modules rather than the root studio component.
+> Bookmark state, page-ID resolution, audio updates, modal editing, and both
+> bookmark list views are likewise isolated under `src/features/bookmarks`.
 > Cloud synchronization and user accounts remain out of scope.
 
 ## 1. Executive summary
