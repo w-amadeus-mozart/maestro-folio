@@ -34,6 +34,8 @@ test("saves, exports, imports, and reopens a complete portable book", async ({ p
   await bookAudioInput.setInputFiles(audioFile("book-tone.mp3"));
   await expect(page.locator(".audio-file-card").getByText("book-tone.mp3", { exact: true })).toBeVisible();
 
+  await page.getByRole("button", { name: "Next spread" }).click();
+  await expect(page.getByText("Pages 3–4", { exact: true }).first()).toBeVisible();
   const bookmarkTrigger = page.getByRole("button", { name: "Bookmark here", exact: true });
   await bookmarkTrigger.click();
   const bookmarkDialog = page.getByRole("dialog", { name: "Name this piece" });
@@ -50,6 +52,13 @@ test("saves, exports, imports, and reopens a complete portable book", async ({ p
   await bookmarkDialog.getByLabel("Bookmark name").fill("Opening theme");
   await bookmarkDialog.locator("input[type='file']").setInputFiles(audioFile("opening-theme.mp3"));
   await bookmarkDialog.getByRole("button", { name: "Add bookmark", exact: true }).click();
+
+  await page.getByRole("button", { name: "Move Moonlight II later" }).click();
+  await page.getByRole("button", { name: "Move Moonlight II later" }).click();
+  await expect(page.locator("[aria-live='polite']")).toContainText("Moonlight II moved to position 6.");
+  await page.getByRole("tab", { name: "Navigation", exact: true }).click();
+  await expect(page.getByText(/Opening theme/).first()).toBeVisible();
+  await expect(page.getByText(/Pages 5–5/).first()).toBeVisible();
 
   await page.getByRole("button", { name: "Save book", exact: true }).click();
   await expect(page.getByRole("button", { name: "Saved", exact: true })).toBeVisible();
@@ -79,4 +88,8 @@ test("saves, exports, imports, and reopens a complete portable book", async ({ p
   await page.getByRole("tab", { name: "Navigation", exact: true }).click();
   await expect(page.getByText("Opening theme", { exact: true })).toBeVisible();
   await expect(page.getByText(/opening-theme\.mp3/)).toBeVisible();
+  await expect(page.getByText(/Pages 5–5/).first()).toBeVisible();
+  await page.getByRole("tab", { name: "Pages", exact: true }).click();
+  await expect(page.locator(".page-open")).toHaveCount(6);
+  await expect(page.locator(".page-open").last()).toHaveAttribute("aria-label", /Moonlight II/);
 });

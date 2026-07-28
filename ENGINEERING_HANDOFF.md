@@ -30,6 +30,10 @@
 > labelled semantics. Editor and sidebar tabs support arrow-key navigation,
 > reader controls have accessible names, focus indicators and coarse-pointer
 > targets are strengthened, and reduced-motion preferences disable 3D motion.
+> Sheet-music pages can now be reordered by drag-and-drop or accessible
+> move-earlier/move-later controls. Cover and index roles remain pinned, the
+> reader preserves its stable page location, and bookmarks continue resolving
+> by page ID through save, reopen, export, and import.
 > Cloud synchronization and user accounts remain out of scope.
 
 ## 1. Executive summary

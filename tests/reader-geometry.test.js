@@ -6,6 +6,7 @@ import {
   readerSpreadLabel,
   spreadPageIndices
 } from "../src/features/reader/reader-geometry.js";
+import { canReorderPage, firstReorderableIndex, movePage } from "../src/features/pages/page-order.js";
 
 describe("reader geometry", () => {
   it("calculates spread limits for cover-only, even, and odd page counts", () => {
@@ -33,5 +34,33 @@ describe("reader geometry", () => {
     expect(readerSpreadLabel(1, 6)).toBe("Pages 1–2");
     expect(readerSpreadLabel(3, 6)).toBe("Pages 5–5");
     expect(readerSpreadLabel(null, 6)).toBe("Page removed");
+  });
+});
+
+describe("page ordering", () => {
+  const pages = [
+    { id: "cover", kind: "cover" },
+    { id: "index", kind: "index" },
+    { id: "one", kind: "page" },
+    { id: "two", kind: "page" },
+    { id: "three", kind: "page" }
+  ];
+
+  it("keeps cover and index positions pinned", () => {
+    expect(firstReorderableIndex(pages)).toBe(2);
+    expect(canReorderPage(pages, 0)).toBe(false);
+    expect(movePage(pages, 0, 3)).toBe(pages);
+  });
+
+  it("moves music pages without changing their stable IDs", () => {
+    const reordered = movePage(pages, 4, 2);
+    expect(reordered.map((page) => page.id)).toEqual(["cover", "index", "three", "one", "two"]);
+    expect(reordered[0].kind).toBe("cover");
+    expect(reordered[1].kind).toBe("index");
+  });
+
+  it("clamps music page destinations after pinned pages", () => {
+    expect(movePage(pages, 4, 0).map((page) => page.id))
+      .toEqual(["cover", "index", "three", "one", "two"]);
   });
 });

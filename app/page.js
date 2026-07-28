@@ -25,6 +25,9 @@ import { readerSpreadLabel } from "../src/features/reader/reader-geometry.js";
 import { BookStage, ReaderControls } from "../src/features/reader/ReaderViews.js";
 import { useBookAudio } from "../src/features/audio/use-book-audio.js";
 import { AudioBar, AudioEditor } from "../src/features/audio/AudioViews.js";
+import { PageGrid } from "../src/features/pages/PageGrid.js";
+import { movePage } from "../src/features/pages/page-order.js";
+import { pageIdToSpread, spreadToPageId } from "../src/features/books/book-migrations.js";
 const SAMPLE_PAGES = [
   { id: "cover", name: "Cover", kind: "cover", src: "/cover.svg" },
   { id: "index", name: "Contents", kind: "index", src: "/index.svg" },
@@ -117,6 +120,21 @@ export default function Home() {
   const navigateReader = (delta) => {
     if (go(delta)) clearActiveBookmark();
   };
+  const reorderPages = (fromIndex, toIndex) => {
+    const visiblePageIds = spread === 0 ? [pages[0]?.id] : [
+      pages[1 + (spread - 1) * 2]?.id,
+      pages[2 + (spread - 1) * 2]?.id
+    ].filter(Boolean);
+    const movedPageId = pages[fromIndex]?.id;
+    const activePageId = visiblePageIds.includes(movedPageId)
+      ? movedPageId
+      : spreadToPageId(spread, pages);
+    const reordered = movePage(pages, fromIndex, toIndex);
+    if (reordered === pages) return;
+    setPages(reordered);
+    setSpread(pageIdToSpread(activePageId, reordered) ?? 0);
+    setSaved(false);
+  };
 
   const applyLoadedBook = (book) => {
     revokeObjectUrls(loadedUrlsRef.current);
@@ -135,7 +153,7 @@ export default function Home() {
   useEffect(() => {
     const key = (e) => {
       if (document.querySelector("[aria-modal='true']")) return;
-      if (e.target.matches("input, textarea, select, [contenteditable='true']")) return;
+      if (e.target.closest("button, input, textarea, select, [role='tab'], [contenteditable='true']")) return;
       if (e.key === "ArrowRight") navigateReader(1);
       if (e.key === "ArrowLeft") navigateReader(-1);
       if (e.key === "Escape") closeFullscreen();
@@ -326,12 +344,13 @@ export default function Home() {
           </div>
           {sideTab === "pages" ? <div id="side-panel-pages" role="tabpanel" aria-labelledby="side-tab-pages">
             <div className="side-panel-head"><span>ALL PAGES ({pages.length})</span><small>Quick jump</small></div>
-            <div className="side-page-grid">
-              {pages.map((page, index) => <button key={page.id} className={(spread === 0 && index === 0) || (spread > 0 && (index === 1 + (spread - 1) * 2 || index === 2 + (spread - 1) * 2)) ? "active" : ""}
-                onClick={() => { jumpToPage(index); clearActiveBookmark(); }}>
-                <img src={page.src} alt={page.name} /><span>{page.kind === "cover" ? "Cover" : page.kind === "index" ? "Index" : index}</span>
-              </button>)}
-            </div>
+            <PageGrid pages={pages}
+              activePageIds={spread === 0 ? [pages[0]?.id] : [
+                pages[1 + (spread - 1) * 2]?.id,
+                pages[2 + (spread - 1) * 2]?.id
+              ].filter(Boolean)}
+              onOpen={(index) => { jumpToPage(index); clearActiveBookmark(); }}
+              onReorder={reorderPages} />
             <div className="side-panel-footer"><button onClick={() => { setEditorTab("content"); setTimeout(() => document.getElementById("sheet-pages-input")?.click(), 0); }}><Plus size={14} /> Add pages</button></div>
           </div> : <div id="side-panel-bookmarks" role="tabpanel" aria-labelledby="side-tab-bookmarks"><BookmarkSidebar
             bookmarks={bookmarks}
