@@ -53,7 +53,7 @@ export function BookmarkSidebar({ bookmarks, activeBookmarkId, getBookmarkLocati
   );
 }
 
-export function BookmarkModal({ draft, location, onNameChange, onConfirm, onClose, onAudio }) {
+export function BookmarkModal({ draft, location, audioError, onNameChange, onConfirm, onClose, onAudio }) {
   const audioInput = useRef(null);
   if (!draft) return null;
 
@@ -70,10 +70,11 @@ export function BookmarkModal({ draft, location, onNameChange, onConfirm, onClos
             onChange={(event) => onNameChange(event.target.value)} />
         </label>
         <div className="bookmark-audio-field">
-          <div><span>Audio file · optional</span><strong>{draft.audioName || "No recording attached"}</strong><small>MP3, WAV or M4A</small></div>
+          <div><span>Audio file · optional</span><strong>{draft.audioName || "No recording attached"}</strong><small>MP3, WAV or M4A · up to 100 MB</small></div>
           <button onClick={() => audioInput.current?.click()}><Headphones size={15} /> {draft.audioSrc ? "Replace" : "Choose audio"}</button>
           <input ref={audioInput} hidden type="file" accept="audio/*" onChange={(event) => event.target.files[0] && onAudio(event.target.files[0])} />
         </div>
+        {audioError && <p className="field-error" role="alert">{audioError}</p>}
         <div className="bookmark-modal-actions">
           <button className="pdf-cancel" onClick={onClose}>Cancel</button>
           <button className="primary" disabled={!draft.name.trim()} onClick={onConfirm}><BookmarkPlus size={16} /> Add bookmark</button>

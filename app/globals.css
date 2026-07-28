@@ -386,5 +386,6 @@ button { cursor: pointer; }
 .storage-notice.success strong { color: #3d653e; }
 .storage-notice p { margin: 0; color: #77694c; font-size: 9px; line-height: 1.45; }
 .storage-notice.error p { color: #77504c; }
+.field-error { margin: 8px 0 0; color: #8d3932; font-size: 11px; line-height: 1.45; }
 .storage-notice.success p { color: #526d50; }
 .storage-notice button { width: 28px; height: 28px; padding: 0; display: grid; place-items: center; border: 0; border-radius: 50%; color: #806e49; background: rgba(255,255,255,.65); }

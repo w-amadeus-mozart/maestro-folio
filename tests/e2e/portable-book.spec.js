@@ -17,7 +17,10 @@ test("saves, exports, imports, and reopens a complete portable book", async ({ p
 
   await page.getByRole("button", { name: "Audio", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Book recording", exact: true })).toBeVisible();
-  await page.locator(".editor-scroll input[accept='audio/*']").setInputFiles(audioFile("book-tone.mp3"));
+  const bookAudioInput = page.locator(".editor-scroll input[accept='audio/*']");
+  await bookAudioInput.setInputFiles({ name: "notes.txt", mimeType: "text/plain", buffer: Buffer.from("not audio") });
+  await expect(page.getByRole("alert")).toHaveText("Choose an MP3, WAV, M4A, AAC, OGG, or FLAC audio file.");
+  await bookAudioInput.setInputFiles(audioFile("book-tone.mp3"));
   await expect(page.locator(".audio-file-card").getByText("book-tone.mp3", { exact: true })).toBeVisible();
 
   await page.getByRole("button", { name: "Bookmark here", exact: true }).click();

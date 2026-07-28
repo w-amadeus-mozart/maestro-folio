@@ -20,6 +20,9 @@
 > cover/index ordering now live under `src/features/importer`.
 > Reader geometry, page-turn timing, tilt/fullscreen state, 3D stage rendering,
 > and tested spread boundaries now live under `src/features/reader`.
+> Book audio state and player rendering now live under `src/features/audio`,
+> with shared bookmark-audio validation, a 100 MB safety limit, readable
+> file/playback errors, and focused unit coverage.
 > Cloud synchronization and user accounts remain out of scope.
 
 ## 1. Executive summary

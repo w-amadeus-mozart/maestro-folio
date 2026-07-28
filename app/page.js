@@ -3,9 +3,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Bookmark, BookmarkPlus, Check, CircleHelp,
-  FileImage, FileText, GripVertical, Headphones, ImagePlus, Library, Loader2,
-  Menu, Music2, Pause, Play, Plus, Save, Sparkles,
-  Volume2, VolumeX, X
+  FileImage, FileText, GripVertical, ImagePlus, Library, Loader2,
+  Menu, Music2, Plus, Save, Sparkles, X
 } from "lucide-react";
 
 import {
@@ -23,6 +22,8 @@ import { PdfImportModal } from "../src/features/importer/PdfImportModal.js";
 import { useReaderNavigation } from "../src/features/reader/use-reader-navigation.js";
 import { readerSpreadLabel } from "../src/features/reader/reader-geometry.js";
 import { BookStage, ReaderControls } from "../src/features/reader/ReaderViews.js";
+import { useBookAudio } from "../src/features/audio/use-book-audio.js";
+import { AudioBar, AudioEditor } from "../src/features/audio/AudioViews.js";
 const SAMPLE_PAGES = [
   { id: "cover", name: "Cover", kind: "cover", src: "/cover.svg" },
   { id: "index", name: "Contents", kind: "index", src: "/index.svg" },
@@ -65,50 +66,11 @@ function PageThumb({ page, index, active, onClick, onRemove }) {
   );
 }
 
-function AudioBar({ audioSrc, audioName, onPick }) {
-  const audio = useRef(null);
-  const input = useRef(null);
-  const [playing, setPlaying] = useState(false);
-  const [time, setTime] = useState(0);
-  const [duration, setDuration] = useState(0);
-  const [muted, setMuted] = useState(false);
-  const fmt = (s) => `${Math.floor((s || 0) / 60)}:${String(Math.floor((s || 0) % 60)).padStart(2, "0")}`;
-
-  const toggle = () => {
-    if (!audioSrc) return input.current?.click();
-    if (audio.current.paused) audio.current.play(); else audio.current.pause();
-  };
-  return (
-    <div className="audio-bar">
-      <audio ref={audio} src={audioSrc || undefined}
-        onTimeUpdate={() => setTime(audio.current.currentTime)}
-        onLoadedMetadata={() => setDuration(audio.current.duration)}
-        onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)} />
-      <input ref={input} hidden type="file" accept="audio/*" onChange={(e) => e.target.files[0] && onPick(e.target.files[0])} />
-      <button className="play-button" onClick={toggle}>{playing ? <Pause size={17} /> : <Play size={17} fill="currentColor" />}</button>
-      <div className="track-copy">
-        <strong>{audioName || "Add a companion recording"}</strong>
-        <small>{audioSrc ? "Audio track" : "Optional · MP3, WAV or M4A"}</small>
-      </div>
-      <span className="time">{fmt(time)}</span>
-      <input className="progress" type="range" min="0" max={duration || 100} value={time}
-        onChange={(e) => { if (audio.current) audio.current.currentTime = +e.target.value; }} />
-      <span className="time subtle">{fmt(duration)}</span>
-      <button className="volume" onClick={() => { setMuted(!muted); if (audio.current) audio.current.muted = !muted; }}>
-        {muted ? <VolumeX size={18} /> : <Volume2 size={18} />}
-      </button>
-    </div>
-  );
-}
-
 export default function Home() {
   const [mode, setMode] = useState("studio");
   const [pages, setPages] = useState(SAMPLE_PAGES);
   const [title, setTitle] = useState("Moonlight Sonata");
   const [composer, setComposer] = useState("Ludwig van Beethoven");
-  const [audioSrc, setAudioSrc] = useState("");
-  const [audioName, setAudioName] = useState("");
-  const [audioAssetId, setAudioAssetId] = useState(null);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [saveError, setSaveError] = useState("");
@@ -119,6 +81,10 @@ export default function Home() {
   const [sideTab, setSideTab] = useState("pages");
   const loadedUrlsRef = useRef([]);
   const {
+    audioSrc, audioName, audioAssetId, audioError,
+    loadBookAudio, resetBookAudio, pickBookAudio
+  } = useBookAudio(setSaved);
+  const {
     books, importing, libraryError, transferNotice, clearLibraryMessages,
     refreshBooks, removeBook, exportBook, importBook
   } = useBookLibrary();
@@ -127,7 +93,7 @@ export default function Home() {
     go, jumpToPage, resetView, toggleFullscreen, closeFullscreen
   } = useReaderNavigation(pages.length);
   const {
-    bookmarks, activeBookmarkId, activeBookmark, bookmarkDraft, resolveBookmarkSpread,
+    bookmarks, activeBookmarkId, activeBookmark, bookmarkDraft, bookmarkAudioError, resolveBookmarkSpread,
     resetBookmarks, clearActiveBookmark, openBookmarkCreator, closeBookmarkCreator,
     renameBookmarkDraft, attachBookmarkAudio, confirmBookmark, openBookmark,
     deleteBookmark, replaceActiveBookmarkAudio
@@ -154,7 +120,7 @@ export default function Home() {
     revokeObjectUrls(loadedUrlsRef.current);
     loadedUrlsRef.current = book._objectUrls || [];
     setPages(book.pages); setTitle(book.title); setComposer(book.composer || "");
-    setAudioSrc(book.audioSrc || ""); setAudioName(book.audioName || ""); setAudioAssetId(book.audioAssetId || null);
+    loadBookAudio(book);
     setShowPageNumbers(Boolean(book.showPageNumbers));
     resetBookmarks(book.bookmarks || []);
     setActiveId(book.id); setSpread(1); setMode("studio");
@@ -189,14 +155,8 @@ export default function Home() {
   };
 
   const pickPlayerAudio = async (file) => {
-    if (!activeBookmark) return pickAudio(file);
+    if (!activeBookmark) return pickBookAudio(file);
     await replaceActiveBookmarkAudio(file);
-  };
-  const pickAudio = async (file) => {
-    setAudioSrc(await readFile(file));
-    setAudioName(file.name);
-    setAudioAssetId(null);
-    setSaved(false);
   };
 
   const save = async () => {
@@ -234,7 +194,7 @@ export default function Home() {
   const createNew = () => {
     revokeObjectUrls(loadedUrlsRef.current); loadedUrlsRef.current = [];
     setPages(SAMPLE_PAGES); setTitle("Untitled score"); setComposer("");
-    setAudioSrc(""); setAudioName(""); setAudioAssetId(null); setActiveId(null); setSpread(1); setMode("studio");
+    resetBookAudio(); setActiveId(null); setSpread(1); setMode("studio");
     setShowPageNumbers(false); setSaveError(""); setStorageWarning("");
     clearLibraryMessages();
     resetBookmarks();
@@ -305,12 +265,8 @@ export default function Home() {
               <div className="content-note"><FileText size={16} /><p><strong>PDF import keeps page order.</strong><br />Choose the cover and index after the file is rendered.</p></div>
             </div>}
 
-            {editorTab === "audio" && <div className="editor-tab-content">
-              <div className="panel-heading compact"><span className="eyebrow">COMPANION AUDIO</span><h1>Book recording</h1><p>Add one recording for the full book. Bookmark recordings remain separate.</p></div>
-              <UploadTile icon={Headphones} title="Companion recording" detail={audioName || "MP3, WAV or M4A"} accept="audio/*" filled={Boolean(audioSrc)} onFiles={(files) => files[0] && pickAudio(files[0])} />
-              {audioSrc && <div className="audio-file-card"><span><Headphones size={17} /></span><div><strong>{audioName}</strong><small>Loaded in the pinned player</small></div></div>}
-              <div className="content-note"><Bookmark size={16} /><p><strong>Piece-specific audio</strong><br />Attach recordings while creating bookmarks in Navigation.</p></div>
-            </div>}
+            {editorTab === "audio" && <AudioEditor audioSrc={audioSrc} audioName={audioName}
+              error={audioError} onPick={pickBookAudio} />}
 
             {editorTab === "navigation" && <BookmarkEditor
               bookmarks={bookmarks}
@@ -367,6 +323,7 @@ export default function Home() {
       <BookmarkModal
         draft={bookmarkDraft}
         location={spreadLabel(bookmarkDraft?.spread ?? spread)}
+        audioError={bookmarkAudioError}
         onNameChange={renameBookmarkDraft}
         onAudio={attachBookmarkAudio}
         onConfirm={confirmBookmark}
