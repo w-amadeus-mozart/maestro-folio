@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { orderPdfPages } from "../src/features/importer/use-pdf-import.js";
+import { destroyPdfLoadingTask, orderPdfPages } from "../src/features/importer/use-pdf-import.js";
 import {
   MAX_IMAGE_BYTES,
   MAX_PDF_BYTES,
@@ -32,6 +32,19 @@ describe("PDF page role ordering", () => {
 
   it("returns no pages when the selected cover is unavailable", () => {
     expect(orderPdfPages(pages, 99, -1)).toEqual([]);
+  });
+});
+
+describe("PDF reader cleanup", () => {
+  it("destroys the loading task once when completion and cancellation overlap", async () => {
+    let calls = 0;
+    const task = { destroy: async () => { calls += 1; } };
+    await Promise.all([destroyPdfLoadingTask(task), destroyPdfLoadingTask(task)]);
+    expect(calls).toBe(1);
+  });
+
+  it("reports an incompatible loading task clearly", async () => {
+    await expect(destroyPdfLoadingTask({})).rejects.toThrow("could not release this file safely");
   });
 });
 

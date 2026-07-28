@@ -50,6 +50,10 @@
 > inline renaming, and atomic deep duplication of books and their media.
 > Deletion requires explicit confirmation, and duplicate media remains usable
 > if the original book is removed.
+> PDF import cleanup now targets the PDF.js loading task rather than the loaded
+> document proxy, matching the current PDF.js API. Cleanup is idempotent across
+> completion and cancellation, preventing the minified
+> `destroy is not a function` upload failure.
 > Cloud synchronization and user accounts remain out of scope.
 
 ## 1. Executive summary

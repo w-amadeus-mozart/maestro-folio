@@ -6,12 +6,41 @@ const audioFile = (name) => ({
   buffer: Buffer.from([0x49, 0x44, 0x33, 0x04, 0x00, 0x00, 0x00, 0x00])
 });
 
+function onePagePdf() {
+  const objects = [
+    "<< /Type /Catalog /Pages 2 0 R >>",
+    "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+    "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 300 400] /Resources << >> /Contents 4 0 R >>",
+    "<< /Length 0 >>\nstream\n\nendstream"
+  ];
+  let pdf = "%PDF-1.4\n";
+  const offsets = [0];
+  objects.forEach((object, index) => {
+    offsets.push(Buffer.byteLength(pdf));
+    pdf += `${index + 1} 0 obj\n${object}\nendobj\n`;
+  });
+  const xref = Buffer.byteLength(pdf);
+  pdf += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
+  pdf += offsets.slice(1).map((offset) => `${String(offset).padStart(10, "0")} 00000 n \n`).join("");
+  pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF`;
+  return Buffer.from(pdf);
+}
+
 test("saves, exports, imports, and reopens a complete portable book", async ({ page }) => {
   test.setTimeout(60_000);
   await page.goto("/", { waitUntil: "networkidle" });
   await page.waitForTimeout(1_000);
 
   await page.getByRole("tab", { name: "Content", exact: true }).click();
+  await page.locator("#pdf-import-input").setInputFiles({
+    name: "one-page-score.pdf",
+    mimeType: "application/pdf",
+    buffer: onePagePdf()
+  });
+  await expect(page.getByRole("dialog", { name: "Choose your book pages" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Import 1 pages" })).toBeVisible();
+  await page.getByRole("dialog", { name: "Choose your book pages" }).getByRole("button", { name: "Cancel", exact: true }).click();
+
   await page.locator(".editor-scroll input[accept='image/*']").first()
     .setInputFiles({ name: "notes.txt", mimeType: "text/plain", buffer: Buffer.from("not an image") });
   await expect(page.getByRole("alert")).toContainText("is not a supported image");
