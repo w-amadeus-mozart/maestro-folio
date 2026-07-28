@@ -18,7 +18,8 @@ export function PdfImportModal({ state, onChooseCover, onChooseIndex, onConfirm,
           <div className="pdf-loading">
             <span className="pdf-loader"><Loader2 className="spin" size={26} /></span>
             <strong>Rendering page {state.progress || 1}</strong>
-            <p>Creating clear previews from your PDF. Large scores may take a moment.</p>
+            <p>Creating clear previews from your PDF. You can cancel without changing the current book.</p>
+            <button className="pdf-cancel" onClick={onClose}>Cancel import</button>
           </div>
         ) : state.status === "error" ? (
           <div className="pdf-error"><strong>We couldn’t read this PDF.</strong><p>{state.error}</p></div>

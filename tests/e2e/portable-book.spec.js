@@ -11,6 +11,13 @@ test("saves, exports, imports, and reopens a complete portable book", async ({ p
   await page.goto("/", { waitUntil: "networkidle" });
   await page.waitForTimeout(1_000);
 
+  await page.getByRole("button", { name: "Content", exact: true }).click();
+  await page.locator(".editor-scroll input[accept='image/*']").first()
+    .setInputFiles({ name: "notes.txt", mimeType: "text/plain", buffer: Buffer.from("not an image") });
+  await expect(page.getByRole("alert")).toContainText("is not a supported image");
+  await page.getByRole("button", { name: "Dismiss notification" }).click();
+
+  await page.getByRole("button", { name: "Details", exact: true }).click();
   await page.getByLabel("Title").fill("E2E Portable Score");
   await page.getByLabel("Composer").fill("Test Composer");
   await expect(page.getByLabel("Title")).toHaveValue("E2E Portable Score");

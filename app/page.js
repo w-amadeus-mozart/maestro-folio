@@ -19,6 +19,7 @@ import { useBookmarks } from "../src/features/bookmarks/use-bookmarks.js";
 import { BookmarkEditor, BookmarkModal, BookmarkSidebar } from "../src/features/bookmarks/BookmarkViews.js";
 import { usePdfImport } from "../src/features/importer/use-pdf-import.js";
 import { PdfImportModal } from "../src/features/importer/PdfImportModal.js";
+import { readImageFiles } from "../src/features/importer/upload-files.js";
 import { useReaderNavigation } from "../src/features/reader/use-reader-navigation.js";
 import { readerSpreadLabel } from "../src/features/reader/reader-geometry.js";
 import { BookStage, ReaderControls } from "../src/features/reader/ReaderViews.js";
@@ -33,12 +34,6 @@ const SAMPLE_PAGES = [
   { id: "page-4", name: "Moonlight IV", kind: "page", src: "/sheet-4.svg" },
 ];
 
-const readFile = (file) => new Promise((resolve) => {
-  const reader = new FileReader();
-  reader.onload = () => resolve(reader.result);
-  reader.readAsDataURL(file);
-});
-
 function UploadTile({ icon: Icon, title, detail, accept, multiple, onFiles, filled, inputId }) {
   const input = useRef(null);
   return (
@@ -47,7 +42,11 @@ function UploadTile({ icon: Icon, title, detail, accept, multiple, onFiles, fill
       <span><strong>{title}</strong><small>{detail}</small></span>
       <span className="tile-action">{filled ? "Replace" : "Add"}</span>
       <input ref={input} id={inputId} hidden type="file" accept={accept} multiple={multiple}
-        onChange={(e) => onFiles([...e.target.files])} />
+        onChange={(event) => {
+          const files = [...event.target.files];
+          event.target.value = "";
+          onFiles(files);
+        }} />
     </button>
   );
 }
@@ -75,6 +74,7 @@ export default function Home() {
   const [saved, setSaved] = useState(false);
   const [saveError, setSaveError] = useState("");
   const [storageWarning, setStorageWarning] = useState("");
+  const [uploadError, setUploadError] = useState("");
   const [activeId, setActiveId] = useState(null);
   const [showPageNumbers, setShowPageNumbers] = useState(false);
   const [editorTab, setEditorTab] = useState("details");
@@ -141,17 +141,23 @@ export default function Home() {
   });
 
   const addImages = async (files, kind = "page") => {
-    const mapped = await Promise.all(files.map(async (file, i) => ({
-      id: `${Date.now()}-${i}`, name: file.name, kind, src: await readFile(file)
-    })));
-    if (kind === "cover") setPages((p) => [mapped[0], ...p.filter((x) => x.kind !== "cover")]);
-    else if (kind === "index") {
-      setPages((p) => {
-        const noIndex = p.filter((x) => x.kind !== "index");
-        return [noIndex[0], mapped[0], ...noIndex.slice(1)];
-      });
-    } else setPages((p) => [...p, ...mapped]);
-    setSaved(false);
+    setUploadError("");
+    try {
+      const decoded = await readImageFiles(files);
+      const mapped = decoded.map(({ file, src }, index) => ({
+        id: `${Date.now()}-${index}`, name: file.name, kind, src
+      }));
+      if (kind === "cover") setPages((current) => [mapped[0], ...current.filter((page) => page.kind !== "cover")]);
+      else if (kind === "index") {
+        setPages((current) => {
+          const noIndex = current.filter((page) => page.kind !== "index");
+          return [noIndex[0], mapped[0], ...noIndex.slice(1)];
+        });
+      } else setPages((current) => [...current, ...mapped]);
+      setSaved(false);
+    } catch (error) {
+      setUploadError(error?.message || "The selected images could not be added.");
+    }
   };
 
   const pickPlayerAudio = async (file) => {
@@ -195,12 +201,12 @@ export default function Home() {
     revokeObjectUrls(loadedUrlsRef.current); loadedUrlsRef.current = [];
     setPages(SAMPLE_PAGES); setTitle("Untitled score"); setComposer("");
     resetBookAudio(); setActiveId(null); setSpread(1); setMode("studio");
-    setShowPageNumbers(false); setSaveError(""); setStorageWarning("");
+    setShowPageNumbers(false); setSaveError(""); setStorageWarning(""); setUploadError("");
     clearLibraryMessages();
     resetBookmarks();
   };
 
-  const actionError = saveError || libraryError;
+  const actionError = saveError || libraryError || uploadError;
   return (
     <div className="app-shell">
       <header className="topbar">
@@ -223,8 +229,8 @@ export default function Home() {
       </header>
 
       {(actionError || storageWarning || transferNotice) && <div className={`storage-notice ${actionError ? "error" : transferNotice ? "success" : "warning"}`} role="alert">
-        <div><strong>{actionError ? "Storage action failed" : transferNotice ? "Book transfer complete" : "Storage warning"}</strong><p>{actionError || transferNotice || storageWarning}</p></div>
-        <button onClick={() => { setSaveError(""); setStorageWarning(""); clearLibraryMessages(); }} aria-label="Dismiss notification"><X size={15} /></button>
+        <div><strong>{uploadError ? "Upload failed" : actionError ? "Storage action failed" : transferNotice ? "Book transfer complete" : "Storage warning"}</strong><p>{actionError || transferNotice || storageWarning}</p></div>
+        <button onClick={() => { setSaveError(""); setStorageWarning(""); setUploadError(""); clearLibraryMessages(); }} aria-label="Dismiss notification"><X size={15} /></button>
       </div>}
       {mode === "library" ? <LibraryView books={books} onOpen={openBook} onDelete={removeBook} onCreate={createNew}
         onExport={exportBook} onImport={importBook} importing={importing} /> :
@@ -257,10 +263,10 @@ export default function Home() {
             {editorTab === "content" && <div className="editor-tab-content">
               <div className="section-title"><div><span className="eyebrow">BOOK CONTENT</span><h2>Pages & files</h2></div><span className="page-count">{pages.length} pages</span></div>
               <div className="upload-stack">
-                <UploadTile icon={FileImage} title="Cover artwork" detail="JPG or PNG" accept="image/*" filled={pages.some(p => p.kind === "cover")} onFiles={(f) => addImages(f, "cover")} />
+                <UploadTile icon={FileImage} title="Cover artwork" detail="JPG or PNG · up to 20 MB" accept="image/*" filled={pages.some(p => p.kind === "cover")} onFiles={(f) => addImages(f, "cover")} />
                 <UploadTile icon={Menu} title="Index page" detail="Optional" accept="image/*" filled={pages.some(p => p.kind === "index")} onFiles={(f) => addImages(f, "index")} />
                 <UploadTile inputId="sheet-pages-input" icon={ImagePlus} title="Sheet music pages" detail="Select multiple images" accept="image/*" multiple onFiles={(f) => addImages(f, "page")} />
-                <UploadTile inputId="pdf-import-input" icon={FileText} title="Import complete PDF" detail="Choose cover and index after upload" accept="application/pdf,.pdf" onFiles={beginPdfImport} />
+                <UploadTile inputId="pdf-import-input" icon={FileText} title="Import complete PDF" detail="Up to 50 MB · 200 pages" accept="application/pdf,.pdf" onFiles={beginPdfImport} />
               </div>
               <div className="content-note"><FileText size={16} /><p><strong>PDF import keeps page order.</strong><br />Choose the cover and index after the file is rendered.</p></div>
             </div>}

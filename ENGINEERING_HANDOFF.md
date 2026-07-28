@@ -23,6 +23,9 @@
 > Book audio state and player rendering now live under `src/features/audio`,
 > with shared bookmark-audio validation, a 100 MB safety limit, readable
 > file/playback errors, and focused unit coverage.
+> Image and PDF imports now validate type and size before changing the book,
+> cap PDF imports at 200 pages, surface image read/decode failures, and allow
+> in-progress PDF rendering to be cancelled safely.
 > Cloud synchronization and user accounts remain out of scope.
 
 ## 1. Executive summary

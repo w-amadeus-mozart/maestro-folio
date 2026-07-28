@@ -1,4 +1,5 @@
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
+import { validatePdfFile, validatePdfPageCount } from "./upload-files.js";
 
 const INITIAL_IMPORT = {
   open: false,
@@ -24,10 +25,15 @@ export function orderPdfPages(pages, frontIndex, indexIndex = -1) {
 
 export function usePdfImport(onImport) {
   const [pdfImport, setPdfImport] = useState(INITIAL_IMPORT);
+  const runRef = useRef(0);
+  const loadingTaskRef = useRef(null);
+  const renderTaskRef = useRef(null);
 
   const beginPdfImport = useCallback(async (files) => {
     const file = files[0];
     if (!file) return;
+    const run = runRef.current + 1;
+    runRef.current = run;
     setPdfImport({
       open: true,
       status: "loading",
@@ -38,14 +44,25 @@ export function usePdfImport(onImport) {
       progress: 1
     });
     try {
+      validatePdfFile(file);
       const [pdfjs, workerModule] = await Promise.all([
         import("pdfjs-dist/build/pdf.mjs"),
         import("pdfjs-dist/build/pdf.worker.min.mjs?url")
       ]);
+      if (runRef.current !== run) return;
       pdfjs.GlobalWorkerOptions.workerSrc = workerModule.default;
-      const pdfDocument = await pdfjs.getDocument({ data: await file.arrayBuffer() }).promise;
+      const loadingTask = pdfjs.getDocument({ data: await file.arrayBuffer() });
+      loadingTaskRef.current = loadingTask;
+      const pdfDocument = await loadingTask.promise;
+      try {
+        validatePdfPageCount(pdfDocument.numPages);
+      } catch (error) {
+        await pdfDocument.destroy();
+        throw error;
+      }
       const rendered = [];
       for (let pageNumber = 1; pageNumber <= pdfDocument.numPages; pageNumber += 1) {
+        if (runRef.current !== run) break;
         setPdfImport((current) => ({ ...current, progress: pageNumber }));
         const pdfPage = await pdfDocument.getPage(pageNumber);
         const baseViewport = pdfPage.getViewport({ scale: 1 });
@@ -57,7 +74,9 @@ export function usePdfImport(onImport) {
         canvas.height = Math.ceil(viewport.height);
         context.fillStyle = "#ffffff";
         context.fillRect(0, 0, canvas.width, canvas.height);
-        await pdfPage.render({ canvasContext: context, viewport }).promise;
+        const renderTask = pdfPage.render({ canvasContext: context, viewport });
+        renderTaskRef.current = renderTask;
+        await renderTask.promise;
         rendered.push({
           id: `pdf-${Date.now()}-${pageNumber}`,
           name: `${file.name} · page ${pageNumber}`,
@@ -66,6 +85,8 @@ export function usePdfImport(onImport) {
         });
         pdfPage.cleanup();
       }
+      await pdfDocument.destroy();
+      if (runRef.current !== run) return;
       setPdfImport({
         open: true,
         status: "ready",
@@ -76,11 +97,17 @@ export function usePdfImport(onImport) {
         progress: rendered.length
       });
     } catch (error) {
+      if (runRef.current !== run || error?.name === "RenderingCancelledException") return;
       setPdfImport((current) => ({
         ...current,
         status: "error",
         error: error?.message || "Please try a different PDF file."
       }));
+    } finally {
+      if (runRef.current === run) {
+        loadingTaskRef.current = null;
+        renderTaskRef.current = null;
+      }
     }
   }, []);
 
@@ -97,6 +124,11 @@ export function usePdfImport(onImport) {
   }, []);
 
   const closePdfImport = useCallback(() => {
+    runRef.current += 1;
+    renderTaskRef.current?.cancel();
+    loadingTaskRef.current?.destroy();
+    renderTaskRef.current = null;
+    loadingTaskRef.current = null;
     setPdfImport((current) => ({ ...current, open: false }));
   }, []);
 
