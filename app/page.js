@@ -102,8 +102,9 @@ export default function Home() {
   const {
     bookmarks, activeBookmarkId, activeBookmark, bookmarkDraft, bookmarkAudioError, resolveBookmarkSpread,
     resetBookmarks, clearActiveBookmark, openBookmarkCreator, closeBookmarkCreator,
-    renameBookmarkDraft, attachBookmarkAudio, confirmBookmark, openBookmark,
-    deleteBookmark, replaceActiveBookmarkAudio
+    renameBookmarkDraft, openBookmarkEditor, retargetBookmarkDraft, removeBookmarkDraftAudio,
+    attachBookmarkAudio, confirmBookmark, openBookmark, deleteBookmark, reorderBookmarks,
+    replaceActiveBookmarkAudio
   } = useBookmarks({ pages, spread, maxSpread, setSpread, setSaved });
   const acceptPdfImport = ({ pages: importedPages, fileName }) => {
     setPages(importedPages);
@@ -307,7 +308,9 @@ export default function Home() {
               getBookmarkLocation={(bookmark) => spreadLabel(resolveBookmarkSpread(bookmark))}
               onAdd={openBookmarkCreator}
               onOpen={openBookmark}
+              onEdit={openBookmarkEditor}
               onDelete={deleteBookmark}
+              onReorder={reorderBookmarks}
               panelId="editor-panel-navigation"
             />}
           </div>
@@ -365,9 +368,12 @@ export default function Home() {
       <BookmarkModal
         draft={bookmarkDraft}
         location={spreadLabel(bookmarkDraft?.spread ?? spread)}
+        currentLocation={spreadLabel(spread)}
         audioError={bookmarkAudioError}
         onNameChange={renameBookmarkDraft}
+        onRetarget={retargetBookmarkDraft}
         onAudio={attachBookmarkAudio}
+        onRemoveAudio={removeBookmarkDraftAudio}
         onConfirm={confirmBookmark}
         onClose={closeBookmarkCreator}
       />      <PdfImportModal

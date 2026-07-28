@@ -38,6 +38,10 @@
 > placement, and outer/inner/center alignment. Cover and index pages are
 > excluded automatically, legacy books receive compatible defaults, and the
 > complete settings model survives save, reopen, export, and import.
+> Existing bookmarks can now be renamed, retargeted to the current spread, and
+> have audio replaced or removed. Bookmark order supports drag-and-drop and
+> accessible move controls, destructive deletion/audio removal is confirmed,
+> and edited order/content remains portable through save and transfer.
 > Cloud synchronization and user accounts remain out of scope.
 
 ## 1. Executive summary

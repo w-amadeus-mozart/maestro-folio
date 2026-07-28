@@ -69,6 +69,27 @@ test("saves, exports, imports, and reopens a complete portable book", async ({ p
   await expect(page.getByText(/Opening theme/).first()).toBeVisible();
   await expect(page.getByText(/Pages 5–5/).first()).toBeVisible();
 
+  await page.getByRole("button", { name: "Previous spread" }).click();
+  await expect(page.getByText("Pages 3–4", { exact: true }).first()).toBeVisible();
+  await page.getByRole("button", { name: "Edit Opening theme" }).click();
+  const editDialog = page.getByRole("dialog", { name: "Edit bookmark" });
+  await editDialog.getByLabel("Bookmark name").fill("Finale");
+  await editDialog.getByRole("button", { name: "Use current page" }).click();
+  page.once("dialog", (dialog) => dialog.accept());
+  await editDialog.getByRole("button", { name: "Remove recording" }).click();
+  await editDialog.getByRole("button", { name: "Save changes" }).click();
+  await expect(page.getByText(/Finale/).first()).toBeVisible();
+  await expect(page.getByText(/Pages 3–4 · No audio/).first()).toBeVisible();
+
+  await page.getByRole("button", { name: "Add", exact: true }).click();
+  await bookmarkDialog.getByLabel("Bookmark name").fill("Encore");
+  await bookmarkDialog.getByRole("button", { name: "Add bookmark", exact: true }).click();
+  await page.getByRole("button", { name: "Move Encore earlier" }).click();
+  await expect(page.locator(".bookmark-row").first()).toContainText("Encore");
+  page.once("dialog", (dialog) => dialog.dismiss());
+  await page.getByRole("button", { name: "Delete Encore" }).click();
+  await expect(page.locator(".bookmark-row").first()).toContainText("Encore");
+
   await page.getByRole("button", { name: "Save book", exact: true }).click();
   await expect(page.getByRole("button", { name: "Saved", exact: true })).toBeVisible();
 
@@ -101,9 +122,10 @@ test("saves, exports, imports, and reopens a complete portable book", async ({ p
   await expect(page.locator(".audio-bar").getByText("book-tone.mp3", { exact: true })).toBeVisible();
 
   await page.getByRole("tab", { name: "Navigation", exact: true }).click();
-  await expect(page.getByText("Opening theme", { exact: true })).toBeVisible();
-  await expect(page.getByText(/opening-theme\.mp3/)).toBeVisible();
-  await expect(page.getByText(/Pages 5–5/).first()).toBeVisible();
+  await expect(page.locator(".bookmark-row")).toHaveCount(2);
+  await expect(page.locator(".bookmark-row").first()).toContainText("Encore");
+  await expect(page.locator(".bookmark-row").nth(1)).toContainText("Finale");
+  await expect(page.locator(".bookmark-row").nth(1)).toContainText("Pages 3–4 · No audio");
   await page.getByRole("tab", { name: "Pages", exact: true }).click();
   await expect(page.locator(".page-open")).toHaveCount(6);
   await expect(page.locator(".page-open").last()).toHaveAttribute("aria-label", /Moonlight II/);

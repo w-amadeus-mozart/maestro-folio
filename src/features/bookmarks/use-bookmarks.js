@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useState } from "react";
 import { pageIdToSpread, spreadToPageId } from "../books/book-migrations.js";
 import { readAudioFile } from "../audio/audio-files.js";
+import { moveBookmark } from "./bookmark-order.js";
 
 export function useBookmarks({ pages, spread, maxSpread, setSpread, setSaved }) {
   const [bookmarks, setBookmarks] = useState([]);
@@ -36,7 +37,8 @@ export function useBookmarks({ pages, spread, maxSpread, setSpread, setSaved }) 
       pageId: spreadToPageId(spread, pages),
       spread,
       audioSrc: "",
-      audioName: ""
+      audioName: "",
+      mode: "create"
     });
   }, [bookmarks.length, pages, spread]);
 
@@ -49,11 +51,43 @@ export function useBookmarks({ pages, spread, maxSpread, setSpread, setSaved }) 
     setBookmarkDraft((current) => current ? { ...current, name } : current);
   }, []);
 
+  const openBookmarkEditor = useCallback((bookmark) => {
+    setBookmarkAudioError("");
+    setBookmarkDraft({
+      ...bookmark,
+      spread: resolveBookmarkSpread(bookmark) ?? 0,
+      mode: "edit"
+    });
+  }, [resolveBookmarkSpread]);
+
+  const retargetBookmarkDraft = useCallback(() => {
+    setBookmarkDraft((current) => current ? {
+      ...current,
+      pageId: spreadToPageId(spread, pages),
+      spread
+    } : current);
+  }, [pages, spread]);
+
+  const removeBookmarkDraftAudio = useCallback(() => {
+    setBookmarkDraft((current) => current ? {
+      ...current,
+      audioSrc: "",
+      audioName: "",
+      audioAssetId: null
+    } : current);
+    setBookmarkAudioError("");
+  }, []);
+
   const attachBookmarkAudio = useCallback(async (file) => {
     setBookmarkAudioError("");
     try {
       const src = await readAudioFile(file);
-      setBookmarkDraft((current) => current ? { ...current, audioSrc: src, audioName: file.name } : current);
+      setBookmarkDraft((current) => current ? {
+        ...current,
+        audioSrc: src,
+        audioName: file.name,
+        audioAssetId: null
+      } : current);
       return true;
     } catch (error) {
       setBookmarkAudioError(error?.message || "The audio file could not be loaded.");
@@ -63,12 +97,19 @@ export function useBookmarks({ pages, spread, maxSpread, setSpread, setSaved }) 
 
   const confirmBookmark = useCallback(() => {
     if (!bookmarkDraft?.name.trim()) return;
-    const bookmark = { ...bookmarkDraft, name: bookmarkDraft.name.trim() };
-    setBookmarks((current) => [...current, bookmark]);
+    const { mode, ...bookmark } = { ...bookmarkDraft, name: bookmarkDraft.name.trim() };
+    setBookmarks((current) => mode === "edit"
+      ? current.map((item) => item.id === bookmark.id ? bookmark : item)
+      : [...current, bookmark]);
     setActiveBookmarkId(bookmark.id);
     setBookmarkDraft(null);
     setSaved(false);
   }, [bookmarkDraft, setSaved]);
+
+  const reorderBookmarks = useCallback((fromIndex, toIndex) => {
+    setBookmarks((current) => moveBookmark(current, fromIndex, toIndex));
+    setSaved(false);
+  }, [setSaved]);
 
   const openBookmark = useCallback((bookmark) => {
     const destination = resolveBookmarkSpread(bookmark);
@@ -111,10 +152,14 @@ export function useBookmarks({ pages, spread, maxSpread, setSpread, setSaved }) 
     openBookmarkCreator,
     closeBookmarkCreator,
     renameBookmarkDraft,
+    openBookmarkEditor,
+    retargetBookmarkDraft,
+    removeBookmarkDraftAudio,
     attachBookmarkAudio,
     confirmBookmark,
     openBookmark,
     deleteBookmark,
+    reorderBookmarks,
     replaceActiveBookmarkAudio
   };
 }
