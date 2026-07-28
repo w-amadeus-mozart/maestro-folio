@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  ArrowLeft, Bookmark, BookmarkPlus, BookOpen, Check, ChevronLeft, ChevronRight, CircleHelp,
+  Bookmark, BookmarkPlus, Check, ChevronLeft, ChevronRight, CircleHelp,
   FileImage, FileText, GripVertical, Headphones, ImagePlus, Library, Loader2,
   Maximize2, Menu, Music2, Pause, Play, Plus, Rotate3D, Save, Sparkles,
   Volume2, VolumeX, X
@@ -18,6 +18,8 @@ import { useBookLibrary } from "../src/features/books/use-book-library.js";
 import { LibraryView } from "../src/features/library/LibraryView.js";
 import { useBookmarks } from "../src/features/bookmarks/use-bookmarks.js";
 import { BookmarkEditor, BookmarkModal, BookmarkSidebar } from "../src/features/bookmarks/BookmarkViews.js";
+import { usePdfImport } from "../src/features/importer/use-pdf-import.js";
+import { PdfImportModal } from "../src/features/importer/PdfImportModal.js";
 const SAMPLE_PAGES = [
   { id: "cover", name: "Cover", kind: "cover", src: "/cover.svg" },
   { id: "index", name: "Contents", kind: "index", src: "/index.svg" },
@@ -163,75 +165,6 @@ function AudioBar({ audioSrc, audioName, onPick }) {
   );
 }
 
-function PdfImportModal({ state, setState, onConfirm, onClose }) {
-  if (!state.open) return null;
-  const chooseCover = (index) => setState((current) => ({
-    ...current,
-    frontIndex: index,
-    indexIndex: current.indexIndex === index ? -1 : current.indexIndex
-  }));
-  const chooseIndex = (index) => setState((current) => ({ ...current, indexIndex: index }));
-
-  return (
-    <div className="pdf-modal-backdrop" role="dialog" aria-modal="true" aria-label="Import PDF pages">
-      <div className="pdf-modal">
-        <div className="pdf-modal-head">
-          <div>
-            <span className="eyebrow">IMPORT PDF</span>
-            <h2>{state.status === "loading" ? "Preparing your score" : "Choose your book pages"}</h2>
-            <p>{state.fileName}</p>
-          </div>
-          <button className="pdf-close" onClick={onClose} aria-label="Close PDF import"><X size={18} /></button>
-        </div>
-        {state.status === "loading" ? (
-          <div className="pdf-loading">
-            <span className="pdf-loader"><Loader2 className="spin" size={26} /></span>
-            <strong>Rendering page {state.progress || 1}</strong>
-            <p>Creating clear previews from your PDF. Large scores may take a moment.</p>
-          </div>
-        ) : state.status === "error" ? (
-          <div className="pdf-error"><strong>We couldn’t read this PDF.</strong><p>{state.error}</p></div>
-        ) : (
-          <>
-            <div className="pdf-role-controls">
-              <label><span>Front cover</span>
-                <select value={state.frontIndex} onChange={(e) => chooseCover(Number(e.target.value))}>
-                  {state.pages.map((_, index) => <option key={index} value={index}>PDF page {index + 1}</option>)}
-                </select>
-              </label>
-              <label><span>Index page</span>
-                <select value={state.indexIndex} onChange={(e) => setState((current) => ({ ...current, indexIndex: Number(e.target.value) }))}>
-                  <option value={-1}>No index page</option>
-                  {state.pages.map((_, index) => index !== state.frontIndex && <option key={index} value={index}>PDF page {index + 1}</option>)}
-                </select>
-              </label>
-              <p>The remaining {Math.max(0, state.pages.length - 1 - (state.indexIndex >= 0 ? 1 : 0))} pages will become sheet music.</p>
-            </div>
-            <div className="pdf-page-grid">
-              {state.pages.map((page, index) => {
-                const isCover = state.frontIndex === index;
-                const isIndex = state.indexIndex === index;
-                return (
-                  <article className={`pdf-page-card ${isCover ? "is-cover" : ""} ${isIndex ? "is-index" : ""}`} key={page.id}>
-                    <div className="pdf-page-image"><img src={page.src} alt={`PDF page ${index + 1}`} /><span>Page {index + 1}</span></div>
-                    <div className="pdf-page-actions">
-                      <button className={isCover ? "selected" : ""} onClick={() => chooseCover(index)}>{isCover && <Check size={12} />} Cover</button>
-                      <button className={isIndex ? "selected" : ""} disabled={isCover} onClick={() => chooseIndex(index)}>{isIndex && <Check size={12} />} Index</button>
-                    </div>
-                  </article>
-                );
-              })}
-            </div>
-            <div className="pdf-modal-footer">
-              <button className="pdf-cancel" onClick={onClose}>Cancel</button>
-              <button className="primary" onClick={onConfirm}><BookOpen size={16} /> Import {state.pages.length} pages</button>
-            </div>
-          </>
-        )}
-      </div>
-    </div>
-  );
-}
 export default function Home() {
   const [mode, setMode] = useState("studio");
   const [pages, setPages] = useState(SAMPLE_PAGES);
@@ -252,7 +185,6 @@ export default function Home() {
   const [showPageNumbers, setShowPageNumbers] = useState(false);
   const [editorTab, setEditorTab] = useState("details");
   const [sideTab, setSideTab] = useState("pages");
-  const [pdfImport, setPdfImport] = useState({ open: false, status: "idle", pages: [], frontIndex: 0, indexIndex: -1, progress: 0 });
   const loadedUrlsRef = useRef([]);
   const {
     books, importing, libraryError, transferNotice, clearLibraryMessages,
@@ -265,6 +197,19 @@ export default function Home() {
     renameBookmarkDraft, attachBookmarkAudio, confirmBookmark, openBookmark,
     deleteBookmark, replaceActiveBookmarkAudio
   } = useBookmarks({ pages, spread, maxSpread, setSpread, setSaved });
+  const acceptPdfImport = ({ pages: importedPages, fileName }) => {
+    setPages(importedPages);
+    setSpread(0);
+    setSaved(false);
+    setActiveId(null);
+    resetBookmarks();
+    revokeObjectUrls(loadedUrlsRef.current);
+    loadedUrlsRef.current = [];
+    if (!title || title === "Untitled score") setTitle(fileName.replace(/\.pdf$/i, ""));
+  };
+  const {
+    pdfImport, beginPdfImport, chooseCover, chooseIndex, closePdfImport, confirmPdfImport
+  } = usePdfImport(acceptPdfImport);
   const spreadLabel = (value) => value === null ? "Page removed" : value === 0 ? "Front cover" : `Pages ${1 + (value - 1) * 2}–${Math.min(pages.length - 1, 2 + (value - 1) * 2)}`;
 
   const applyLoadedBook = (book) => {
@@ -315,67 +260,6 @@ export default function Home() {
     setSaved(false);
   };
 
-  const beginPdfImport = async (files) => {
-    const file = files[0];
-    if (!file) return;
-    setPdfImport({ open: true, status: "loading", fileName: file.name, pages: [], frontIndex: 0, indexIndex: -1, progress: 1 });
-    try {
-      const [pdfjs, workerModule] = await Promise.all([
-        import("pdfjs-dist/build/pdf.mjs"),
-        import("pdfjs-dist/build/pdf.worker.min.mjs?url")
-      ]);
-      pdfjs.GlobalWorkerOptions.workerSrc = workerModule.default;
-      const pdfDocument = await pdfjs.getDocument({ data: await file.arrayBuffer() }).promise;
-      const rendered = [];
-      for (let pageNumber = 1; pageNumber <= pdfDocument.numPages; pageNumber += 1) {
-        setPdfImport((current) => ({ ...current, progress: pageNumber }));
-        const pdfPage = await pdfDocument.getPage(pageNumber);
-        const baseViewport = pdfPage.getViewport({ scale: 1 });
-        const scale = Math.min(2, 1400 / baseViewport.width);
-        const viewport = pdfPage.getViewport({ scale });
-        const canvas = globalThis.document.createElement("canvas");
-        const context = canvas.getContext("2d", { alpha: false });
-        canvas.width = Math.ceil(viewport.width);
-        canvas.height = Math.ceil(viewport.height);
-        context.fillStyle = "#ffffff";
-        context.fillRect(0, 0, canvas.width, canvas.height);
-        await pdfPage.render({ canvasContext: context, viewport }).promise;
-        rendered.push({
-          id: `pdf-${Date.now()}-${pageNumber}`,
-          name: `${file.name} · page ${pageNumber}`,
-          originalPage: pageNumber,
-          src: canvas.toDataURL("image/jpeg", 0.9)
-        });
-        pdfPage.cleanup();
-      }
-      setPdfImport({
-        open: true, status: "ready", fileName: file.name, pages: rendered,
-        frontIndex: 0, indexIndex: rendered.length > 1 ? 1 : -1, progress: rendered.length
-      });
-    } catch (error) {
-      setPdfImport((current) => ({ ...current, status: "error", error: error?.message || "Please try a different PDF file." }));
-    }
-  };
-
-  const confirmPdfImport = () => {
-    const cover = pdfImport.pages[pdfImport.frontIndex];
-    if (!cover) return;
-    const index = pdfImport.indexIndex >= 0 ? pdfImport.pages[pdfImport.indexIndex] : null;
-    const selected = new Set([pdfImport.frontIndex, pdfImport.indexIndex]);
-    const musicPages = pdfImport.pages.filter((_, position) => !selected.has(position));
-    setPages([
-      { ...cover, kind: "cover", name: `${cover.name} · cover` },
-      ...(index ? [{ ...index, kind: "index", name: `${index.name} · index` }] : []),
-      ...musicPages.map((page) => ({ ...page, kind: "page" }))
-    ]);
-    setSpread(0);
-    setSaved(false);
-    setActiveId(null);
-    resetBookmarks();
-    revokeObjectUrls(loadedUrlsRef.current); loadedUrlsRef.current = [];
-    if (!title || title === "Untitled score") setTitle(pdfImport.fileName.replace(/\.pdf$/i, ""));
-    setPdfImport((current) => ({ ...current, open: false }));
-  };
   const pickPlayerAudio = async (file) => {
     if (!activeBookmark) return pickAudio(file);
     await replaceActiveBookmarkAudio(file);
@@ -564,9 +448,10 @@ export default function Home() {
         onClose={closeBookmarkCreator}
       />      <PdfImportModal
         state={pdfImport}
-        setState={setPdfImport}
+        onChooseCover={chooseCover}
+        onChooseIndex={chooseIndex}
         onConfirm={confirmPdfImport}
-        onClose={() => setPdfImport((current) => ({ ...current, open: false }))}
+        onClose={closePdfImport}
       />    </div>
   );
 }

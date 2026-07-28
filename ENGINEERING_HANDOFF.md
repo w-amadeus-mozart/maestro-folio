@@ -16,6 +16,8 @@
 > dedicated feature modules rather than the root studio component.
 > Bookmark state, page-ID resolution, audio updates, modal editing, and both
 > bookmark list views are likewise isolated under `src/features/bookmarks`.
+> PDF.js rendering, progress/error state, role selection, modal UI, and tested
+> cover/index ordering now live under `src/features/importer`.
 > Cloud synchronization and user accounts remain out of scope.
 
 ## 1. Executive summary
