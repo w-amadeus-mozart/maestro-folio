@@ -3,22 +3,20 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft, Bookmark, BookmarkPlus, BookOpen, Check, ChevronLeft, ChevronRight, CircleHelp,
-  Download, FileImage, FileText, GripVertical, Headphones, ImagePlus, Library, Loader2,
+  FileImage, FileText, GripVertical, Headphones, ImagePlus, Library, Loader2,
   Maximize2, Menu, Music2, Pause, Play, Plus, Rotate3D, Save, Sparkles,
-  Trash2, Upload, Volume2, VolumeX, X
+  Trash2, Volume2, VolumeX, X
 } from "lucide-react";
 
 import {
-  deleteBook,
-  exportBookPackage,
   getStorageStatus,
-  importBookPackage,
-  listBookSummaries,
   loadBook,
   revokeObjectUrls,
   saveBook
 } from "../src/features/books/book-repository.js";
 import { pageIdToSpread, spreadToPageId } from "../src/features/books/book-migrations.js";
+import { useBookLibrary } from "../src/features/books/use-book-library.js";
+import { LibraryView } from "../src/features/library/LibraryView.js";
 const SAMPLE_PAGES = [
   { id: "cover", name: "Cover", kind: "cover", src: "/cover.svg" },
   { id: "index", name: "Contents", kind: "index", src: "/index.svg" },
@@ -164,55 +162,6 @@ function AudioBar({ audioSrc, audioName, onPick }) {
   );
 }
 
-function LibraryView({ books, onOpen, onDelete, onCreate, onExport, onImport, importing }) {
-  const importInput = useRef(null);
-  return (
-    <main className="library-view">
-      <div className="library-heading">
-        <div><span className="eyebrow">YOUR COLLECTION</span><h1>Music worth returning to.</h1>
-          <p>Every score, thoughtfully preserved and ready to play on this device.</p></div>
-        <div className="library-actions">
-          <button className="secondary" onClick={() => importInput.current?.click()} disabled={importing}>
-            {importing ? <Loader2 className="spin" size={16} /> : <Upload size={16} />}
-            {importing ? "Importing" : "Import book"}
-          </button>
-          <input ref={importInput} hidden type="file"
-            accept=".maestro-folio,application/vnd.maestro-folio.book+json,application/json"
-            onChange={(event) => {
-              const file = event.target.files?.[0];
-              event.target.value = "";
-              if (file) onImport(file);
-            }} />
-          <button className="primary" onClick={onCreate}><Plus size={17} /> Create new book</button>
-        </div>
-      </div>
-      <div className="library-grid">
-        {books.map((book) => (
-          <article className="library-card" key={book.id}>
-            <button className="cover-button" onClick={() => onOpen(book)}>
-              <img src={book.pages?.[0]?.src || "/cover.svg"} alt={book.title} />
-              <span className="open-pill"><BookOpen size={15} /> Open book</span>
-            </button>
-            <div className="card-copy">
-              <div><h3>{book.title}</h3><p>{book.composer || "Unknown composer"}</p></div>
-              <div className="card-actions">
-                <button className="export-button" onClick={() => onExport(book)} aria-label={`Export ${book.title}`}>
-                  <Download size={15} />
-                </button>
-                <button className="delete-button" onClick={() => onDelete(book.id)} aria-label={`Delete ${book.title}`}>
-                  <Trash2 size={16} />
-                </button>
-              </div>
-            </div>
-            <div className="card-meta"><span>{book.pageCount ?? book.pages?.length ?? 0} pages</span><span>{book.audioSrc ? "With audio" : "Score only"}</span></div>
-          </article>
-        ))}
-        <button className="new-card" onClick={onCreate}><span><Plus size={25} /></span><strong>Create a new book</strong><small>Bring another score to life</small></button>
-      </div>
-    </main>
-  );
-}
-
 function PdfImportModal({ state, setState, onConfirm, onClose }) {
   if (!state.open) return null;
   const chooseCover = (index) => setState((current) => ({
@@ -321,13 +270,10 @@ export default function Home() {
   const [audioSrc, setAudioSrc] = useState("");
   const [audioName, setAudioName] = useState("");
   const [audioAssetId, setAudioAssetId] = useState(null);
-  const [books, setBooks] = useState([]);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [saveError, setSaveError] = useState("");
   const [storageWarning, setStorageWarning] = useState("");
-  const [transferNotice, setTransferNotice] = useState("");
-  const [importing, setImporting] = useState(false);
   const [activeId, setActiveId] = useState(null);
   const [fullscreen, setFullscreen] = useState(false);
   const [showPageNumbers, setShowPageNumbers] = useState(false);
@@ -338,7 +284,10 @@ export default function Home() {
   const [sideTab, setSideTab] = useState("pages");
   const [pdfImport, setPdfImport] = useState({ open: false, status: "idle", pages: [], frontIndex: 0, indexIndex: -1, progress: 0 });
   const loadedUrlsRef = useRef([]);
-  const summaryUrlsRef = useRef([]);
+  const {
+    books, importing, libraryError, transferNotice, clearLibraryMessages,
+    refreshBooks, removeBook, exportBook, importBook
+  } = useBookLibrary();
   const maxSpread = Math.max(0, Math.ceil((pages.length - 1) / 2));
   const activeBookmark = bookmarks.find((bookmark) => bookmark.id === activeBookmarkId) || null;
   const resolveBookmarkSpread = (bookmark) => {
@@ -347,13 +296,6 @@ export default function Home() {
     return bookmark.spread ?? null;
   };
   const spreadLabel = (value) => value === null ? "Page removed" : value === 0 ? "Front cover" : `Pages ${1 + (value - 1) * 2}–${Math.min(pages.length - 1, 2 + (value - 1) * 2)}`;
-
-  const refreshBooks = async () => {
-    const result = await listBookSummaries();
-    revokeObjectUrls(summaryUrlsRef.current);
-    summaryUrlsRef.current = result.objectUrls;
-    setBooks(result.books);
-  };
 
   const applyLoadedBook = (book) => {
     revokeObjectUrls(loadedUrlsRef.current);
@@ -366,11 +308,7 @@ export default function Home() {
   };
 
   useEffect(() => {
-    refreshBooks().catch((error) => setSaveError(error.message));
-    return () => {
-      revokeObjectUrls(loadedUrlsRef.current);
-      revokeObjectUrls(summaryUrlsRef.current);
-    };
+    return () => revokeObjectUrls(loadedUrlsRef.current);
   }, []);
 
   useEffect(() => {
@@ -545,7 +483,7 @@ export default function Home() {
   };
 
   const openBook = async (summary) => {
-    setSaveError("");
+    setSaveError(""); clearLibraryMessages();
     try {
       const book = await loadBook(summary.id);
       applyLoadedBook(book);
@@ -558,46 +496,11 @@ export default function Home() {
     setPages(SAMPLE_PAGES); setTitle("Untitled score"); setComposer("");
     setAudioSrc(""); setAudioName(""); setAudioAssetId(null); setActiveId(null); setSpread(1); setMode("studio");
     setShowPageNumbers(false); setSaveError(""); setStorageWarning("");
+    clearLibraryMessages();
     setBookmarks([]); setActiveBookmarkId(null); setBookmarkDraft(null);
   };
-  const del = async (id) => {
-    try {
-      await deleteBook(id);
-      await refreshBooks();
-    } catch (error) {
-      setSaveError(error?.message || "The book could not be deleted.");
-    }
-  };
-  const exportBook = async (summary) => {
-    setSaveError(""); setTransferNotice("");
-    try {
-      const { blob, fileName } = await exportBookPackage(summary.id);
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = fileName;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      URL.revokeObjectURL(url);
-      setTransferNotice(`“${summary.title}” was exported. Move the file to your other device and choose Import book.`);
-    } catch (error) {
-      setSaveError(error?.message || "The book could not be exported.");
-    }
-  };
-  const importBook = async (file) => {
-    setImporting(true); setSaveError(""); setTransferNotice("");
-    try {
-      const imported = await importBookPackage(file);
-      await refreshBooks();
-      setTransferNotice(`“${imported.title}” was imported as a new book on this device.`);
-    } catch (error) {
-      setSaveError(error?.message || "The book could not be imported.");
-    } finally {
-      setImporting(false);
-    }
-  };
 
+  const actionError = saveError || libraryError;
   return (
     <div className="app-shell">
       <header className="topbar">
@@ -619,11 +522,11 @@ export default function Home() {
         </div>
       </header>
 
-      {(saveError || storageWarning || transferNotice) && <div className={`storage-notice ${saveError ? "error" : transferNotice ? "success" : "warning"}`} role="alert">
-        <div><strong>{saveError ? "Storage action failed" : transferNotice ? "Book transfer complete" : "Storage warning"}</strong><p>{saveError || transferNotice || storageWarning}</p></div>
-        <button onClick={() => { setSaveError(""); setStorageWarning(""); setTransferNotice(""); }} aria-label="Dismiss notification"><X size={15} /></button>
+      {(actionError || storageWarning || transferNotice) && <div className={`storage-notice ${actionError ? "error" : transferNotice ? "success" : "warning"}`} role="alert">
+        <div><strong>{actionError ? "Storage action failed" : transferNotice ? "Book transfer complete" : "Storage warning"}</strong><p>{actionError || transferNotice || storageWarning}</p></div>
+        <button onClick={() => { setSaveError(""); setStorageWarning(""); clearLibraryMessages(); }} aria-label="Dismiss notification"><X size={15} /></button>
       </div>}
-      {mode === "library" ? <LibraryView books={books} onOpen={openBook} onDelete={del} onCreate={createNew}
+      {mode === "library" ? <LibraryView books={books} onOpen={openBook} onDelete={removeBook} onCreate={createNew}
         onExport={exportBook} onImport={importBook} importing={importing} /> :
       <main className="workspace">
         <section className="editor-panel">
