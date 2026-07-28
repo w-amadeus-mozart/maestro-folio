@@ -96,8 +96,8 @@ export default function Home() {
     refreshBooks, removeBook, copyBook, updateBookTitle, exportBook, importBook
   } = useBookLibrary();
   const {
-    spread, setSpread, tilt, setTilt, turning, fullscreen, maxSpread,
-    go, jumpToPage, resetView, toggleFullscreen, closeFullscreen
+    spread, setSpread, tilt, setTilt, turn, fullscreen, maxSpread,
+    go, finishTurn, startPageDrag, endPageDrag, jumpToPage, resetView, toggleFullscreen, closeFullscreen
   } = useReaderNavigation(pages.length);
   const {
     bookmarks, activeBookmarkId, activeBookmark, bookmarkDraft, bookmarkAudioError, resolveBookmarkSpread,
@@ -122,6 +122,10 @@ export default function Home() {
   const spreadLabel = (value) => readerSpreadLabel(value, pages.length);
   const navigateReader = (delta) => {
     if (go(delta)) clearActiveBookmark();
+  };
+  const endReaderPageDrag = (complete, settleMs) => {
+    endPageDrag(complete, settleMs);
+    if (complete) clearActiveBookmark();
   };
   const reorderPages = (fromIndex, toIndex) => {
     const visiblePageIds = spread === 0 ? [pages[0]?.id] : [
@@ -326,7 +330,8 @@ export default function Home() {
             <div><span className="live-dot" /> 3D BOOK PREVIEW</div>
             <div className="book-meta"><strong>{title}</strong><span>·</span><span>{spreadLabel(spread)}</span></div>
           </div>
-          <BookStage pages={pages} spread={spread} tilt={tilt} setTilt={setTilt} turning={turning}
+          <BookStage pages={pages} spread={spread} tilt={tilt} setTilt={setTilt} turn={turn}
+            onTurnEnd={finishTurn} onStartPageDrag={startPageDrag} onEndPageDrag={endReaderPageDrag}
             fullscreen={fullscreen} onFullscreen={toggleFullscreen} onResetView={resetView} pageNumbering={pageNumbering} />
           <ReaderControls spread={spread} maxSpread={maxSpread} label={spreadLabel(spread)}
             onPrevious={() => navigateReader(-1)} onNext={() => navigateReader(1)} />
