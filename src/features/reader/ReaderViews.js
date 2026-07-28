@@ -190,8 +190,6 @@ export function BookStage({
           transform: `rotateX(${tilt.x}deg) rotateY(${tilt.y}deg)`
         }}>
         <div ref={bookRef} className={`book ${bookOpen ? "open" : "closed"}`}>
-          <div className="page-stack left-stack" style={{ "--stack": Math.min(14, displayLeftIndex ?? 0) }} />
-          <div className="page-stack right-stack" style={{ "--stack": Math.min(14, pages.length - (displayLeftIndex ?? 0)) }} />
           {left && <div className="book-page left-page">
             <img src={left.src} alt={left.name || "Book page"} onLoad={measurePage} />
             {leftNumber !== null && <span className={pageNumberClass("left", pageNumbering)}>{leftNumber}</span>}

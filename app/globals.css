@@ -118,9 +118,6 @@ button:focus-visible, input:focus-visible, select:focus-visible, [tabindex]:focu
 .page-no.left { left: 5%; }
 .page-no.right { right: 5%; }
 .page-no.center { left: 50%; transform: translateX(-50%); }
-.page-stack { position: absolute; top: 1.2%; width: 50%; height: 98%; background: repeating-linear-gradient(0deg, #c9c1b3 0 1px, #eee8dd 1px 3px); z-index: -1; }
-.left-stack { left: calc(var(--stack) * -.35px); transform: translateZ(-5px); border-radius: 5px 0 0 5px; }
-.right-stack { right: calc(var(--stack) * -.35px); transform: translateZ(-5px); border-radius: 0 5px 5px 0; }
 .spine-shine { position: absolute; left: calc(50% - 13px); top: 0; width: 26px; height: 100%; background: linear-gradient(90deg, transparent, rgba(69,51,29,.15), rgba(255,255,255,.24), rgba(69,51,29,.13), transparent); z-index: 4; pointer-events: none; }
 .closed .spine-shine { display: none; }
 /* Turning sheet — real page imagery on both faces, driven three ways:
@@ -424,11 +421,6 @@ button:focus-visible, input:focus-visible, select:focus-visible, [tabindex]:focu
 
 /* Neutral layered page depth */
 .book::before { content: ""; position: absolute; inset: -1.1% -1%; z-index: -3; border: 1px solid #cfc7ba; border-radius: 6px; background: repeating-linear-gradient(0deg, #f0ebe1 0 2px, #d7d0c4 2px 3px); transform: translateY(5px) translateZ(-14px); box-shadow: 0 3px 0 #d8d1c5, 0 6px 0 #c7c0b5, 0 14px 24px rgba(0,0,0,.28); }
-.page-stack { top: 1%; height: 99%; border: 1px solid #cec6ba; background: repeating-linear-gradient(0deg, #f4efe6 0 2px, #cfc7bb 2px 3px); z-index: -2; }
-.left-stack { left: 0; transform: translateX(calc(var(--stack) * -.42px)) translateY(calc(var(--stack) * .18px)) translateZ(-8px); border-radius: 6px 0 0 6px; box-shadow: -3px 2px 0 #e0d9ce, -6px 4px 0 #cfc7bb; }
-.right-stack { right: 0; transform: translateX(calc(var(--stack) * .42px)) translateY(calc(var(--stack) * .18px)) translateZ(-8px); border-radius: 0 6px 6px 0; box-shadow: 3px 2px 0 #e0d9ce, 6px 4px 0 #cfc7bb; }
-.closed .left-stack { width: 100%; left: 0; transform: translateX(calc(var(--stack) * -.25px)) translateY(calc(var(--stack) * .22px)) translateZ(-8px); border-radius: 6px; box-shadow: -3px 2px 0 #e0d9ce, -5px 5px 0 #cfc7bb; }
-.closed .right-stack { display: none; }
 .book-page { border-color: #d8d1c6; }
 
 @media (max-width: 1180px) {
