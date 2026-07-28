@@ -3,14 +3,16 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft, Bookmark, BookmarkPlus, BookOpen, Check, ChevronLeft, ChevronRight, CircleHelp,
-  FileImage, FileText, GripVertical, Headphones, ImagePlus, Library, Loader2,
+  Download, FileImage, FileText, GripVertical, Headphones, ImagePlus, Library, Loader2,
   Maximize2, Menu, Music2, Pause, Play, Plus, Rotate3D, Save, Sparkles,
   Trash2, Upload, Volume2, VolumeX, X
 } from "lucide-react";
 
 import {
   deleteBook,
+  exportBookPackage,
   getStorageStatus,
+  importBookPackage,
   listBookSummaries,
   loadBook,
   revokeObjectUrls,
@@ -162,13 +164,27 @@ function AudioBar({ audioSrc, audioName, onPick }) {
   );
 }
 
-function LibraryView({ books, onOpen, onDelete, onCreate }) {
+function LibraryView({ books, onOpen, onDelete, onCreate, onExport, onImport, importing }) {
+  const importInput = useRef(null);
   return (
     <main className="library-view">
       <div className="library-heading">
         <div><span className="eyebrow">YOUR COLLECTION</span><h1>Music worth returning to.</h1>
-          <p>Every score, thoughtfully preserved and ready to play.</p></div>
-        <button className="primary" onClick={onCreate}><Plus size={17} /> Create new book</button>
+          <p>Every score, thoughtfully preserved and ready to play on this device.</p></div>
+        <div className="library-actions">
+          <button className="secondary" onClick={() => importInput.current?.click()} disabled={importing}>
+            {importing ? <Loader2 className="spin" size={16} /> : <Upload size={16} />}
+            {importing ? "Importing" : "Import book"}
+          </button>
+          <input ref={importInput} hidden type="file"
+            accept=".maestro-folio,application/vnd.maestro-folio.book+json,application/json"
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              event.target.value = "";
+              if (file) onImport(file);
+            }} />
+          <button className="primary" onClick={onCreate}><Plus size={17} /> Create new book</button>
+        </div>
       </div>
       <div className="library-grid">
         {books.map((book) => (
@@ -179,7 +195,14 @@ function LibraryView({ books, onOpen, onDelete, onCreate }) {
             </button>
             <div className="card-copy">
               <div><h3>{book.title}</h3><p>{book.composer || "Unknown composer"}</p></div>
-              <button className="delete-button" onClick={() => onDelete(book.id)}><Trash2 size={16} /></button>
+              <div className="card-actions">
+                <button className="export-button" onClick={() => onExport(book)} aria-label={`Export ${book.title}`}>
+                  <Download size={15} />
+                </button>
+                <button className="delete-button" onClick={() => onDelete(book.id)} aria-label={`Delete ${book.title}`}>
+                  <Trash2 size={16} />
+                </button>
+              </div>
             </div>
             <div className="card-meta"><span>{book.pageCount ?? book.pages?.length ?? 0} pages</span><span>{book.audioSrc ? "With audio" : "Score only"}</span></div>
           </article>
@@ -303,6 +326,8 @@ export default function Home() {
   const [saved, setSaved] = useState(false);
   const [saveError, setSaveError] = useState("");
   const [storageWarning, setStorageWarning] = useState("");
+  const [transferNotice, setTransferNotice] = useState("");
+  const [importing, setImporting] = useState(false);
   const [activeId, setActiveId] = useState(null);
   const [fullscreen, setFullscreen] = useState(false);
   const [showPageNumbers, setShowPageNumbers] = useState(false);
@@ -543,6 +568,35 @@ export default function Home() {
       setSaveError(error?.message || "The book could not be deleted.");
     }
   };
+  const exportBook = async (summary) => {
+    setSaveError(""); setTransferNotice("");
+    try {
+      const { blob, fileName } = await exportBookPackage(summary.id);
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      setTransferNotice(`“${summary.title}” was exported. Move the file to your other device and choose Import book.`);
+    } catch (error) {
+      setSaveError(error?.message || "The book could not be exported.");
+    }
+  };
+  const importBook = async (file) => {
+    setImporting(true); setSaveError(""); setTransferNotice("");
+    try {
+      const imported = await importBookPackage(file);
+      await refreshBooks();
+      setTransferNotice(`“${imported.title}” was imported as a new book on this device.`);
+    } catch (error) {
+      setSaveError(error?.message || "The book could not be imported.");
+    } finally {
+      setImporting(false);
+    }
+  };
 
   return (
     <div className="app-shell">
@@ -565,11 +619,12 @@ export default function Home() {
         </div>
       </header>
 
-      {(saveError || storageWarning) && <div className={`storage-notice ${saveError ? "error" : "warning"}`} role="alert">
-        <div><strong>{saveError ? "Storage action failed" : "Storage warning"}</strong><p>{saveError || storageWarning}</p></div>
-        <button onClick={() => { setSaveError(""); setStorageWarning(""); }} aria-label="Dismiss notification"><X size={15} /></button>
+      {(saveError || storageWarning || transferNotice) && <div className={`storage-notice ${saveError ? "error" : transferNotice ? "success" : "warning"}`} role="alert">
+        <div><strong>{saveError ? "Storage action failed" : transferNotice ? "Book transfer complete" : "Storage warning"}</strong><p>{saveError || transferNotice || storageWarning}</p></div>
+        <button onClick={() => { setSaveError(""); setStorageWarning(""); setTransferNotice(""); }} aria-label="Dismiss notification"><X size={15} /></button>
       </div>}
-      {mode === "library" ? <LibraryView books={books} onOpen={openBook} onDelete={del} onCreate={createNew} /> :
+      {mode === "library" ? <LibraryView books={books} onOpen={openBook} onDelete={del} onCreate={createNew}
+        onExport={exportBook} onImport={importBook} importing={importing} /> :
       <main className="workspace">
         <section className="editor-panel">
           <div className="editor-titlebar">

@@ -10,6 +10,8 @@ const DB_VERSION = 2;
 const BOOKS_STORE = "books";
 const ASSETS_STORE = "assets";
 const ASSET_BOOK_INDEX = "byBookId";
+const PACKAGE_FORMAT = "maestro-folio-book";
+const PACKAGE_VERSION = 1;
 
 let databasePromise;
 let migrationPromise;
@@ -67,6 +69,27 @@ function dataUrlToBlob(dataUrl) {
   return new Blob([decodeURIComponent(encoded)], { type: mime });
 }
 
+function bytesToBase64(bytes) {
+  let binary = "";
+  const chunkSize = 0x8000;
+  for (let offset = 0; offset < bytes.length; offset += chunkSize) {
+    binary += String.fromCharCode(...bytes.subarray(offset, offset + chunkSize));
+  }
+  return btoa(binary);
+}
+
+function base64ToBlob(encoded, mime) {
+  if (typeof encoded !== "string") throw new Error("A package asset is missing its data.");
+  try {
+    const binary = atob(encoded);
+    const bytes = new Uint8Array(binary.length);
+    for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
+    return new Blob([bytes], { type: mime || "application/octet-stream" });
+  } catch {
+    throw new Error("A package asset contains invalid data.");
+  }
+}
+
 async function sourceToBlob(source) {
   if (source instanceof Blob) return source;
   if (!source) return new Blob([], { type: "application/octet-stream" });
@@ -74,6 +97,30 @@ async function sourceToBlob(source) {
   const response = await fetch(source);
   if (!response.ok) throw new Error(`Unable to read media asset (${response.status}).`);
   return response.blob();
+}
+
+function safeFileName(value) {
+  const normalized = (value || "untitled-score")
+    .normalize("NFKD")
+    .replace(/[^\w\s-]/g, "")
+    .trim()
+    .replace(/[\s_-]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .toLowerCase();
+  return normalized || "untitled-score";
+}
+
+function validatePackage(parsed) {
+  if (!parsed || typeof parsed !== "object" || parsed.format !== PACKAGE_FORMAT) {
+    throw new Error("This is not a Maestro Folio book package.");
+  }
+  if (parsed.packageVersion !== PACKAGE_VERSION) {
+    throw new Error(`This package version is not supported. Expected version ${PACKAGE_VERSION}.`);
+  }
+  if (!parsed.book || typeof parsed.book !== "object" || !Array.isArray(parsed.book.pageRefs)) {
+    throw new Error("The package is missing its book information.");
+  }
+  if (!Array.isArray(parsed.assets)) throw new Error("The package is missing its media assets.");
 }
 
 function assetRecord({ assetId = crypto.randomUUID(), bookId, kind, blob, width, height }) {
@@ -363,6 +410,135 @@ export async function saveBook(book) {
     throw new Error(`The book could not be saved: ${error?.message || "Unknown storage error"}`);
   }
   return record;
+}
+
+export async function exportBookPackage(bookId) {
+  const database = await getDatabase();
+  const transaction = database.transaction([BOOKS_STORE, ASSETS_STORE], "readonly");
+  const bookRequest = requestResult(transaction.objectStore(BOOKS_STORE).get(bookId));
+  const assetsRequest = requestResult(transaction.objectStore(ASSETS_STORE).index(ASSET_BOOK_INDEX).getAll(bookId));
+  const [book, assets] = await Promise.all([bookRequest, assetsRequest]);
+  await transactionDone(transaction);
+  if (!book) throw new Error("This book could not be found.");
+
+  const serializedAssets = [];
+  for (const asset of assets) {
+    const bytes = new Uint8Array(await asset.bytes.arrayBuffer());
+    serializedAssets.push({
+      assetId: asset.assetId,
+      kind: asset.kind,
+      mime: asset.mime || asset.bytes.type || "application/octet-stream",
+      size: asset.size ?? asset.bytes.size,
+      width: asset.width || null,
+      height: asset.height || null,
+      data: bytesToBase64(bytes)
+    });
+  }
+
+  const payload = {
+    format: PACKAGE_FORMAT,
+    packageVersion: PACKAGE_VERSION,
+    exportedAt: new Date().toISOString(),
+    book,
+    assets: serializedAssets
+  };
+  const blob = new Blob([JSON.stringify(payload)], { type: "application/vnd.maestro-folio.book+json" });
+  return {
+    blob,
+    fileName: `${safeFileName(book.title)}.maestro-folio`
+  };
+}
+
+export async function importBookPackage(file) {
+  let parsed;
+  try {
+    parsed = JSON.parse(await file.text());
+  } catch {
+    throw new Error("The selected file is not a valid Maestro Folio package.");
+  }
+  validatePackage(parsed);
+
+  const newBookId = crypto.randomUUID();
+  const assetIdMap = new Map();
+  const importedAssets = parsed.assets.map((asset) => {
+    if (!asset || typeof asset.assetId !== "string") {
+      throw new Error("The package contains an invalid media asset.");
+    }
+    if (assetIdMap.has(asset.assetId)) throw new Error("The package contains duplicate media assets.");
+    const assetId = crypto.randomUUID();
+    assetIdMap.set(asset.assetId, assetId);
+    const blob = base64ToBlob(asset.data, asset.mime);
+    if (Number.isFinite(asset.size) && asset.size !== blob.size) {
+      throw new Error("A package asset is incomplete or corrupted.");
+    }
+    return assetRecord({
+      assetId,
+      bookId: newBookId,
+      kind: asset.kind || "page",
+      blob,
+      width: asset.width,
+      height: asset.height
+    });
+  });
+
+  const remapAssetId = (assetId) => {
+    if (!assetId) return null;
+    const remapped = assetIdMap.get(assetId);
+    if (!remapped) throw new Error("The package is missing a referenced media asset.");
+    return remapped;
+  };
+  const pageRefs = parsed.book.pageRefs.map((page, index) => {
+    if (!page?.assetId) throw new Error("A package page is missing its media asset.");
+    return {
+      pageId: page.pageId || crypto.randomUUID(),
+      kind: page.kind || (index === 0 ? "cover" : "page"),
+      name: page.name || `Page ${index + 1}`,
+      assetId: remapAssetId(page.assetId),
+      thumbAssetId: remapAssetId(page.thumbAssetId),
+      originalPage: page.originalPage ?? null
+    };
+  });
+  if (!pageRefs.length) throw new Error("The package does not contain any pages.");
+
+  const bookmarks = (Array.isArray(parsed.book.bookmarks) ? parsed.book.bookmarks : []).map((bookmark) => ({
+    id: bookmark?.id || crypto.randomUUID(),
+    name: bookmark?.name || "Untitled bookmark",
+    pageId: bookmark?.pageId || null,
+    orphaned: !pageRefs.some((page) => page.pageId === bookmark?.pageId),
+    audioAssetId: remapAssetId(bookmark?.audioAssetId),
+    audioName: bookmark?.audioName || ""
+  }));
+  const record = {
+    id: newBookId,
+    schemaVersion: CURRENT_BOOK_SCHEMA_VERSION,
+    title: parsed.book.title || "Untitled score",
+    composer: parsed.book.composer || "",
+    pageRefs,
+    pageCount: pageRefs.length,
+    bookmarks,
+    audioAssetId: remapAssetId(parsed.book.audioAssetId),
+    audioName: parsed.book.audioName || "",
+    showPageNumbers: Boolean(parsed.book.showPageNumbers),
+    updatedAt: new Date().toISOString()
+  };
+
+  const estimatedBytes = importedAssets.reduce((total, asset) => total + asset.size, 0);
+  const storage = await getStorageStatus();
+  if (storage.quota && storage.usage + estimatedBytes > storage.quota * 0.95) {
+    throw new Error("There is not enough browser storage to import this book.");
+  }
+
+  const database = await getDatabase();
+  const transaction = database.transaction([BOOKS_STORE, ASSETS_STORE], "readwrite");
+  const assets = transaction.objectStore(ASSETS_STORE);
+  importedAssets.forEach((asset) => assets.put(asset));
+  transaction.objectStore(BOOKS_STORE).put(record);
+  try {
+    await transactionDone(transaction);
+  } catch (error) {
+    throw new Error(`The book could not be imported: ${error?.message || "Unknown storage error"}`);
+  }
+  return { id: record.id, title: record.title };
 }
 
 export async function deleteBook(bookId) {

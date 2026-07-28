@@ -143,6 +143,10 @@ button { cursor: pointer; }
 .library-heading h1 { font-size: 38px; }
 .library-heading p { margin-bottom: 0; }
 .primary { border: 0; border-radius: 8px; background: var(--night); color: white; height: 42px; padding: 0 18px; display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; }
+.library-actions { display: flex; align-items: center; gap: 9px; }
+.secondary { height: 42px; padding: 0 16px; display: flex; align-items: center; gap: 8px; border: 1px solid #cec7bb; border-radius: 8px; color: #5f4b30; background: #fffefa; font-size: 12px; font-weight: 600; }
+.secondary:hover { border-color: #a87b42; background: white; }
+.secondary:disabled { opacity: .55; cursor: wait; }
 .library-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 28px; padding-top: 34px; }
 .library-card { min-width: 0; }
 .cover-button { position: relative; padding: 0; border: 0; width: 100%; aspect-ratio: .76; border-radius: 7px 12px 12px 7px; overflow: hidden; background: #25241f; box-shadow: -5px 8px 17px #62543b30, inset 4px 0 #ffffff25; transition: .25s; }
@@ -154,7 +158,9 @@ button { cursor: pointer; }
 .card-copy { display: flex; justify-content: space-between; align-items: flex-start; padding: 15px 2px 7px; }
 .card-copy h3 { margin: 0 0 4px; font: 600 16px "Playfair Display",serif; }
 .card-copy p { margin: 0; color: var(--muted); font-size: 9px; }
-.delete-button { border: 0; background: transparent; color: #aaa69d; padding: 3px; }
+.card-actions { display: flex; align-items: center; gap: 3px; }
+.export-button, .delete-button { width: 29px; height: 29px; padding: 0; display: grid; place-items: center; border: 0; border-radius: 6px; background: transparent; color: #aaa69d; }
+.export-button:hover { color: #785120; background: #eee5d7; }
 .delete-button:hover { color: #9e483f; }
 .card-meta { border-top: 1px solid #e2ded6; padding: 8px 2px; display: flex; justify-content: space-between; color: #9a968e; font-size: 8px; }
 .new-card { aspect-ratio: .76; align-self: start; border: 1px dashed #c7c0b4; background: rgba(255,255,255,.25); border-radius: 10px; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #837865; transition: .2s; }
@@ -183,7 +189,7 @@ button { cursor: pointer; }
   .track-copy { width: 100px; }
   .library-view { padding: 35px 20px; }
   .library-heading { display: block; }
-  .library-heading .primary { margin-top: 20px; }
+  .library-actions { margin-top: 20px; flex-wrap: wrap; }
 }
 
 /* PDF import */
@@ -374,8 +380,11 @@ button { cursor: pointer; }
 
 .storage-notice { position: fixed; top: 82px; right: 18px; z-index: 180; width: min(390px, calc(100vw - 36px)); padding: 13px 13px 13px 15px; display: grid; grid-template-columns: minmax(0,1fr) 28px; gap: 10px; border: 1px solid #d1bd86; border-radius: 9px; background: #fff8df; box-shadow: 0 12px 35px rgba(45,39,28,.2); }
 .storage-notice.error { border-color: #d7a39d; background: #fff0ed; }
+.storage-notice.success { border-color: #a9c5a7; background: #eff8ed; }
 .storage-notice strong { display: block; margin-bottom: 3px; color: #5d4821; font-size: 10px; }
 .storage-notice.error strong { color: #8d3932; }
+.storage-notice.success strong { color: #3d653e; }
 .storage-notice p { margin: 0; color: #77694c; font-size: 9px; line-height: 1.45; }
 .storage-notice.error p { color: #77504c; }
+.storage-notice.success p { color: #526d50; }
 .storage-notice button { width: 28px; height: 28px; padding: 0; display: grid; place-items: center; border: 0; border-radius: 50%; color: #806e49; background: rgba(255,255,255,.65); }

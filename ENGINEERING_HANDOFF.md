@@ -5,6 +5,14 @@
 **Review branch:** `codex/maestro-folio`  
 **Current commit:** `648fb24ace930158bf205ad05753936cc54b4213`
 
+> **Implementation update — 28 July 2026:** The review snapshot below predates the
+> storage work completed in `54bfd9d`. IndexedDB now uses a versioned v2 schema
+> with separate Blob assets, automatic v1 migration, stable page-ID bookmark
+> references, quota/error handling, and Vitest coverage. The library also supports
+> exporting and importing complete `.maestro-folio` book packages for safe
+> transfer between devices. Cloud synchronization and user accounts remain out
+> of scope.
+
 ## 1. Executive summary
 
 Maestro Folio is a browser-based application that converts uploaded sheet music into an interactive 3D book. Users can import image pages or a complete PDF, identify the cover and optional index, turn pages, tilt the book in 3D, attach audio, create named bookmarks, save books locally, and reopen them from a library.
@@ -438,4 +446,3 @@ Why it matters:
 Recommended change:
 Suggested acceptance test:
 ```
-
