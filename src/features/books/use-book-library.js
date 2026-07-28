@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   deleteBook,
+  duplicateBook,
   exportBookPackage,
   importBookPackage,
   listBookSummaries,
+  renameBook,
   revokeObjectUrls
 } from "./book-repository.js";
 
@@ -59,6 +61,30 @@ export function useBookLibrary() {
     }
   }, [clearLibraryMessages]);
 
+  const copyBook = useCallback(async (summary) => {
+    clearLibraryMessages();
+    try {
+      const copy = await duplicateBook(summary.id);
+      await refreshBooks();
+      setTransferNotice(`“${copy.title}” is ready in your library.`);
+    } catch (error) {
+      setLibraryError(error?.message || "The book could not be duplicated.");
+    }
+  }, [clearLibraryMessages, refreshBooks]);
+
+  const updateBookTitle = useCallback(async (summary, title) => {
+    clearLibraryMessages();
+    try {
+      await renameBook(summary.id, title);
+      await refreshBooks();
+      setTransferNotice(`Book renamed to “${title.trim()}”.`);
+      return true;
+    } catch (error) {
+      setLibraryError(error?.message || "The book could not be renamed.");
+      return false;
+    }
+  }, [clearLibraryMessages, refreshBooks]);
+
   const importBook = useCallback(async (file) => {
     setImporting(true);
     clearLibraryMessages();
@@ -81,6 +107,8 @@ export function useBookLibrary() {
     clearLibraryMessages,
     refreshBooks,
     removeBook,
+    copyBook,
+    updateBookTitle,
     exportBook,
     importBook
   };

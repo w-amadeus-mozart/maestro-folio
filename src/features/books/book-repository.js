@@ -564,6 +564,91 @@ export async function deleteBook(bookId) {
   await transactionDone(transaction);
 }
 
+export async function renameBook(bookId, title) {
+  const nextTitle = title?.trim();
+  if (!nextTitle) throw new Error("Enter a title for this book.");
+  const database = await getDatabase();
+  const transaction = database.transaction(BOOKS_STORE, "readwrite");
+  const store = transaction.objectStore(BOOKS_STORE);
+  const record = await requestResult(store.get(bookId));
+  if (!record) {
+    transaction.abort();
+    throw new Error("This book could not be found.");
+  }
+  store.put({ ...record, title: nextTitle, updatedAt: new Date().toISOString() });
+  await transactionDone(transaction);
+}
+
+export async function duplicateBook(bookId) {
+  const database = await getDatabase();
+  const readTransaction = database.transaction([BOOKS_STORE, ASSETS_STORE], "readonly");
+  const sourceRequest = requestResult(readTransaction.objectStore(BOOKS_STORE).get(bookId));
+  const assetsRequest = requestResult(readTransaction.objectStore(ASSETS_STORE).index(ASSET_BOOK_INDEX).getAll(bookId));
+  const [source, sourceAssets] = await Promise.all([sourceRequest, assetsRequest]);
+  await transactionDone(readTransaction);
+  if (!source) throw new Error("This book could not be found.");
+
+  const storage = await getStorageStatus();
+  const estimatedBytes = sourceAssets.reduce((total, asset) => total + (asset.size ?? asset.bytes?.size ?? 0), 0);
+  if (storage.quota && storage.usage + estimatedBytes > storage.quota * 0.95) {
+    throw new Error("There is not enough browser storage to duplicate this book.");
+  }
+
+  const newBookId = crypto.randomUUID();
+  const assetIds = new Map();
+  const sourcePages = source.pageRefs || [];
+  const sourceBookmarks = source.bookmarks || [];
+  const copiedAssets = sourceAssets.map((asset) => {
+    const assetId = crypto.randomUUID();
+    assetIds.set(asset.assetId, assetId);
+    return { ...asset, assetId, bookId: newBookId, createdAt: new Date().toISOString() };
+  });
+  const remap = (assetId) => assetId ? assetIds.get(assetId) || null : null;
+  const copy = {
+    ...source,
+    id: newBookId,
+    title: `${source.title || "Untitled score"} copy`,
+    pageRefs: sourcePages.map((page) => ({
+      ...page,
+      pageId: crypto.randomUUID(),
+      assetId: remap(page.assetId),
+      thumbAssetId: remap(page.thumbAssetId)
+    })),
+    audioAssetId: remap(source.audioAssetId),
+    bookmarks: sourceBookmarks.map((bookmark) => {
+      const sourcePageIndex = sourcePages.findIndex((page) => page.pageId === bookmark.pageId);
+      return {
+        ...bookmark,
+        id: crypto.randomUUID(),
+        pageId: sourcePageIndex >= 0 ? null : bookmark.pageId,
+        audioAssetId: remap(bookmark.audioAssetId)
+      };
+    }),
+    updatedAt: new Date().toISOString()
+  };
+  copy.bookmarks = copy.bookmarks.map((bookmark, index) => {
+    const sourceBookmark = sourceBookmarks[index];
+    const sourcePageIndex = sourcePages.findIndex((page) => page.pageId === sourceBookmark.pageId);
+    return {
+      ...bookmark,
+      pageId: sourcePageIndex >= 0 ? copy.pageRefs[sourcePageIndex].pageId : bookmark.pageId,
+      orphaned: sourcePageIndex < 0
+    };
+  });
+
+  const writeTransaction = database.transaction([BOOKS_STORE, ASSETS_STORE], "readwrite");
+  const assetStore = writeTransaction.objectStore(ASSETS_STORE);
+  copiedAssets.forEach((asset) => assetStore.put(asset));
+  writeTransaction.objectStore(BOOKS_STORE).put(copy);
+  try {
+    await transactionDone(writeTransaction);
+  } catch (error) {
+    if (error?.name === "QuotaExceededError") throw new Error("Browser storage is full. The book was not duplicated.");
+    throw new Error(`The book could not be duplicated: ${error?.message || "Unknown storage error"}`);
+  }
+  return { id: copy.id, title: copy.title };
+}
+
 export async function __resetRepositoryForTests() {
   if (databasePromise) {
     try { (await databasePromise).close(); } catch { /* test cleanup */ }

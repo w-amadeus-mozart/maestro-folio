@@ -93,7 +93,7 @@ export default function Home() {
   } = useBookAudio(setSaved);
   const {
     books, importing, libraryError, transferNotice, clearLibraryMessages,
-    refreshBooks, removeBook, exportBook, importBook
+    refreshBooks, removeBook, copyBook, updateBookTitle, exportBook, importBook
   } = useBookLibrary();
   const {
     spread, setSpread, tilt, setTilt, turning, fullscreen, maxSpread,
@@ -258,6 +258,7 @@ export default function Home() {
         <button onClick={() => { setSaveError(""); setStorageWarning(""); setUploadError(""); clearLibraryMessages(); }} aria-label="Dismiss notification"><X size={15} /></button>
       </div>}
       {mode === "library" ? <LibraryView books={books} onOpen={openBook} onDelete={removeBook} onCreate={createNew}
+        onDuplicate={copyBook} onRename={updateBookTitle}
         onExport={exportBook} onImport={importBook} importing={importing} /> :
       <main className="workspace">
         <section className="editor-panel">

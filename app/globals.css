@@ -164,7 +164,13 @@ button:focus-visible, input:focus-visible, select:focus-visible, [tabindex]:focu
 .secondary { height: 42px; padding: 0 16px; display: flex; align-items: center; gap: 8px; border: 1px solid #cec7bb; border-radius: 8px; color: #5f4b30; background: #fffefa; font-size: 12px; font-weight: 600; }
 .secondary:hover { border-color: #a87b42; background: white; }
 .secondary:disabled { opacity: .55; cursor: wait; }
-.library-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 28px; padding-top: 34px; }
+.library-tools { min-height: 58px; display: flex; align-items: center; gap: 14px; border-bottom: 1px solid var(--line); }
+.library-tools > span { margin-left: auto; color: var(--muted); font-size: 10px; }
+.library-search { width: min(360px, 45vw); height: 36px; padding: 0 11px; display: flex; align-items: center; gap: 8px; border: 1px solid #d5cec3; border-radius: 7px; background: white; color: #8a8278; }
+.library-search input { width: 100%; border: 0; outline: 0; background: transparent; font-size: 11px; }
+.library-sort { display: flex; align-items: center; gap: 7px; color: #777168; font-size: 9px; }
+.library-sort select { height: 34px; padding: 0 25px 0 9px; border: 1px solid #d5cec3; border-radius: 7px; background: white; color: #5c554c; font-size: 10px; }
+.library-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); align-items: start; gap: 28px; padding-top: 34px; }
 .library-card { min-width: 0; }
 .cover-button { position: relative; padding: 0; border: 0; width: 100%; aspect-ratio: .76; border-radius: 7px 12px 12px 7px; overflow: hidden; background: #25241f; box-shadow: -5px 8px 17px #62543b30, inset 4px 0 #ffffff25; transition: .25s; }
 .cover-button:hover { transform: translateY(-5px) rotateY(-2deg); box-shadow: -8px 15px 24px #62543b38; }
@@ -175,10 +181,18 @@ button:focus-visible, input:focus-visible, select:focus-visible, [tabindex]:focu
 .card-copy { display: flex; justify-content: space-between; align-items: flex-start; padding: 15px 2px 7px; }
 .card-copy h3 { margin: 0 0 4px; font: 600 16px "Playfair Display",serif; }
 .card-copy p { margin: 0; color: var(--muted); font-size: 9px; }
-.card-actions { display: flex; align-items: center; gap: 3px; }
-.export-button, .delete-button { width: 29px; height: 29px; padding: 0; display: grid; place-items: center; border: 0; border-radius: 6px; background: transparent; color: #aaa69d; }
+.card-actions { display: flex; align-items: center; gap: 1px; }
+.card-actions button { width: 27px; height: 29px; padding: 0; display: grid; place-items: center; border: 0; border-radius: 6px; background: transparent; color: #aaa69d; }
+.card-actions button:hover { color: #785120; background: #eee5d7; }
 .export-button:hover { color: #785120; background: #eee5d7; }
 .delete-button:hover { color: #9e483f; }
+.library-rename { min-width: 0; display: flex; align-items: center; gap: 3px; }
+.library-rename label { min-width: 0; }
+.library-rename input { width: 100%; height: 29px; padding: 0 7px; border: 1px solid var(--brass); border-radius: 5px; font: 600 13px "Playfair Display", serif; }
+.library-rename button { flex: 0 0 auto; width: 25px; height: 27px; display: grid; place-items: center; border: 0; border-radius: 5px; background: #f0e6d8; color: #775324; }
+.library-empty { grid-column: 1 / -1; min-height: 190px; display: grid; place-items: center; align-content: center; gap: 8px; color: #8a8278; text-align: center; }
+.library-empty strong { color: #4e473f; font: 600 18px "Playfair Display", serif; }
+.library-empty small { font-size: 9px; }
 .card-meta { border-top: 1px solid #e2ded6; padding: 8px 2px; display: flex; justify-content: space-between; color: #9a968e; font-size: 8px; }
 .new-card { aspect-ratio: .76; align-self: start; border: 1px dashed #c7c0b4; background: rgba(255,255,255,.25); border-radius: 10px; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #837865; transition: .2s; }
 .new-card:hover { background: rgba(255,255,255,.7); border-color: #9f8158; }

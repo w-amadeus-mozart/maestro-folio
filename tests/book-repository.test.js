@@ -3,10 +3,12 @@ import { beforeEach, describe, expect, it } from "vitest";
 import {
   __resetRepositoryForTests,
   deleteBook,
+  duplicateBook,
   exportBookPackage,
   importBookPackage,
   listBookSummaries,
   loadBook,
+  renameBook,
   revokeObjectUrls,
   saveBook
 } from "../src/features/books/book-repository.js";
@@ -113,6 +115,34 @@ describe("book repository", () => {
     expect(books).toHaveLength(0);
     revokeObjectUrls(objectUrls);
     await expect(loadBook("delete-me")).rejects.toThrow("could not be found");
+  });
+
+  it("deep-copies a book so its media survives deleting the original, then renames it", async () => {
+    await saveBook({
+      id: "original",
+      title: "Original score",
+      composer: "Composer",
+      pages: [
+        { id: "cover", kind: "cover", name: "Cover", src: image },
+        { id: "piece", kind: "page", name: "Piece", src: image }
+      ],
+      audioSrc: audio,
+      audioName: "book.mp3",
+      bookmarks: [{ id: "mark", name: "Piece", pageId: "piece", audioSrc: audio, audioName: "piece.mp3" }]
+    });
+
+    const copy = await duplicateBook("original");
+    expect(copy.title).toBe("Original score copy");
+    await renameBook(copy.id, "Practice score");
+    await deleteBook("original");
+
+    const loaded = await loadBook(copy.id);
+    expect(loaded.title).toBe("Practice score");
+    expect(loaded.pages).toHaveLength(2);
+    expect(loaded.audioSrc).toMatch(/^blob:/);
+    expect(loaded.bookmarks[0]).toMatchObject({ name: "Piece", spread: 1, orphaned: false });
+    expect(loaded.bookmarks[0].audioSrc).toMatch(/^blob:/);
+    revokeObjectUrls(loaded._objectUrls);
   });
 
   it("exports and imports a complete book as a new local copy", async () => {

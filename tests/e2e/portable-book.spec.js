@@ -135,4 +135,24 @@ test("saves, exports, imports, and reopens a complete portable book", async ({ p
   await page.getByRole("tab", { name: "Pages", exact: true }).click();
   await expect(page.locator(".page-open")).toHaveCount(6);
   await expect(page.locator(".page-open").last()).toHaveAttribute("aria-label", /Moonlight II/);
+
+  await page.getByRole("button", { name: "My library 2", exact: true }).click();
+  const libraryCards = page.locator("article.library-card");
+  await libraryCards.nth(1).getByRole("button", { name: "Rename E2E Portable Score" }).click();
+  await libraryCards.nth(1).getByLabel("New title for E2E Portable Score").fill("Practice Copy");
+  await libraryCards.nth(1).getByRole("button", { name: "Save title for E2E Portable Score" }).click();
+  await expect(page.getByRole("heading", { name: "Practice Copy", exact: true })).toBeVisible();
+
+  await page.getByRole("button", { name: "Duplicate Practice Copy" }).click();
+  await expect(page.getByRole("heading", { name: "Practice Copy copy", exact: true })).toBeVisible();
+  await page.getByRole("searchbox", { name: "Search books" }).fill("Practice");
+  await expect(page.locator("article.library-card")).toHaveCount(2);
+  await page.getByLabel("Sort by").selectOption("title");
+
+  page.once("dialog", (dialog) => dialog.dismiss());
+  await page.getByRole("button", { name: "Delete Practice Copy copy" }).click();
+  await expect(page.locator("article.library-card")).toHaveCount(2);
+  page.once("dialog", (dialog) => dialog.accept());
+  await page.getByRole("button", { name: "Delete Practice Copy copy" }).click();
+  await expect(page.locator("article.library-card")).toHaveCount(1);
 });

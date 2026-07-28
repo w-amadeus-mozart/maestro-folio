@@ -46,6 +46,10 @@
 > start/end markers. Full-book and bookmark recordings keep independent
 > settings through save, reopen, export, and import, with keyboard-accessible
 > native controls and focused unit/end-to-end coverage.
+> The library now supports title/composer search, recent/title/composer sorting,
+> inline renaming, and atomic deep duplication of books and their media.
+> Deletion requires explicit confirmation, and duplicate media remains usable
+> if the original book is removed.
 > Cloud synchronization and user accounts remain out of scope.
 
 ## 1. Executive summary
