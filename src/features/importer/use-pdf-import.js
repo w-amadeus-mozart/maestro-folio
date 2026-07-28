@@ -22,6 +22,14 @@ export function destroyPdfLoadingTask(task) {
   return promise;
 }
 
+export function pdfImportErrorMessage(error) {
+  if (error?.name === "PasswordException") return "This PDF is password-protected. Remove the password and try again.";
+  if (error?.name === "InvalidPDFException") return "This PDF is damaged or is not a valid PDF file.";
+  if (error?.name === "MissingPDFException") return "The selected PDF could not be read. Choose it again.";
+  if (error?.name === "UnexpectedResponseException") return "The PDF could not be loaded completely. Try again.";
+  return error?.message || "Please try a different PDF file.";
+}
+
 export function orderPdfPages(pages, frontIndex, indexIndex = -1) {
   const cover = pages[frontIndex];
   if (!cover) return [];
@@ -68,6 +76,7 @@ export function usePdfImport(onImport) {
       loadingTaskRef.current = loadingTask;
       const pdfDocument = await loadingTask.promise;
       validatePdfPageCount(pdfDocument.numPages);
+      setPdfImport((current) => ({ ...current, totalPages: pdfDocument.numPages }));
       const rendered = [];
       for (let pageNumber = 1; pageNumber <= pdfDocument.numPages; pageNumber += 1) {
         if (runRef.current !== run) break;
@@ -92,6 +101,8 @@ export function usePdfImport(onImport) {
             originalPage: pageNumber,
             src: canvas.toDataURL("image/jpeg", 0.9)
           });
+          canvas.width = 1;
+          canvas.height = 1;
         } finally {
           pdfPage.cleanup();
         }
@@ -111,7 +122,7 @@ export function usePdfImport(onImport) {
       setPdfImport((current) => ({
         ...current,
         status: "error",
-        error: error?.message || "Please try a different PDF file."
+        error: pdfImportErrorMessage(error)
       }));
     } finally {
       try {

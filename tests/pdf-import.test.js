@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { destroyPdfLoadingTask, orderPdfPages } from "../src/features/importer/use-pdf-import.js";
+import { destroyPdfLoadingTask, orderPdfPages, pdfImportErrorMessage } from "../src/features/importer/use-pdf-import.js";
 import {
   MAX_IMAGE_BYTES,
   MAX_PDF_BYTES,
@@ -45,6 +45,14 @@ describe("PDF reader cleanup", () => {
 
   it("reports an incompatible loading task clearly", async () => {
     await expect(destroyPdfLoadingTask({})).rejects.toThrow("could not release this file safely");
+  });
+});
+
+describe("PDF import errors", () => {
+  it("turns engine failures into useful guidance", () => {
+    expect(pdfImportErrorMessage({ name: "PasswordException" })).toContain("password-protected");
+    expect(pdfImportErrorMessage({ name: "InvalidPDFException" })).toContain("damaged");
+    expect(pdfImportErrorMessage({ name: "MissingPDFException" })).toContain("Choose it again");
   });
 });
 

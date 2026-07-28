@@ -234,6 +234,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, [tabindex]:focu
 .pdf-loader { width: 58px; height: 58px; margin-bottom: 16px; border-radius: 50%; display: grid; place-items: center; background: #ebe2d4; color: var(--brass); }
 .pdf-loading strong, .pdf-error strong { font: 600 19px "Playfair Display",serif; }
 .pdf-loading p, .pdf-error p { max-width: 370px; margin: 8px 0 0; color: var(--muted); font-size: 11px; line-height: 1.5; }
+.pdf-loading progress { width: min(320px, 75vw); margin-top: 16px; accent-color: var(--brass); }
 .pdf-error strong { color: #8c4038; }
 .pdf-role-controls { flex: 0 0 auto; display: grid; grid-template-columns: 180px 180px 1fr; gap: 14px; align-items: end; padding: 15px 26px; border-bottom: 1px solid #ddd7cd; background: #f1ece3; }
 .pdf-role-controls label span { display: block; margin-bottom: 5px; color: #6d6961; font-size: 9px; font-weight: 600; letter-spacing: .3px; }

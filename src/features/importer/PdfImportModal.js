@@ -20,7 +20,9 @@ export function PdfImportModal({ state, onChooseCover, onChooseIndex, onConfirm,
         {state.status === "loading" ? (
           <div className="pdf-loading" role="status" aria-live="polite">
             <span className="pdf-loader"><Loader2 className="spin" size={26} /></span>
-            <strong>Rendering page {state.progress || 1}</strong>
+            <strong>Rendering page {state.progress || 1}{state.totalPages ? ` of ${state.totalPages}` : ""}</strong>
+            {state.totalPages && <progress value={state.progress || 1} max={state.totalPages}
+              aria-label={`Rendered ${state.progress || 1} of ${state.totalPages} PDF pages`} />}
             <p>Creating clear previews from your PDF. You can cancel without changing the current book.</p>
             <button className="pdf-cancel" onClick={onClose}>Cancel import</button>
           </div>

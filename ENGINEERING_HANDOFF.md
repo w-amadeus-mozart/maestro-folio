@@ -54,6 +54,9 @@
 > document proxy, matching the current PDF.js API. Cleanup is idempotent across
 > completion and cancellation, preventing the minified
 > `destroy is not a function` upload failure.
+> PDF reliability messaging now distinguishes password-protected, damaged,
+> missing, and incomplete files. Multi-page imports show determinate page
+> progress and release each render canvas promptly to reduce peak memory use.
 > Cloud synchronization and user accounts remain out of scope.
 
 ## 1. Executive summary
