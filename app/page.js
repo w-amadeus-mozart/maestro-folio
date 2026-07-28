@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Bookmark, BookmarkPlus, Check, CircleHelp,
-  FileImage, FileText, GripVertical, ImagePlus, Library, Loader2,
+  FileImage, FileText, ImagePlus, Library, Loader2,
   Menu, Music2, Plus, Save, Sparkles, X
 } from "lucide-react";
 
@@ -37,32 +37,34 @@ const SAMPLE_PAGES = [
 function UploadTile({ icon: Icon, title, detail, accept, multiple, onFiles, filled, inputId }) {
   const input = useRef(null);
   return (
-    <button className={`upload-tile ${filled ? "filled" : ""}`} onClick={() => input.current?.click()}>
-      <span className="upload-icon">{filled ? <Check size={18} /> : <Icon size={19} />}</span>
-      <span><strong>{title}</strong><small>{detail}</small></span>
-      <span className="tile-action">{filled ? "Replace" : "Add"}</span>
+    <>
+      <button className={`upload-tile ${filled ? "filled" : ""}`} onClick={() => input.current?.click()}>
+        <span className="upload-icon">{filled ? <Check size={18} /> : <Icon size={19} />}</span>
+        <span><strong>{title}</strong><small>{detail}</small></span>
+        <span className="tile-action">{filled ? "Replace" : "Add"}</span>
+      </button>
       <input ref={input} id={inputId} hidden type="file" accept={accept} multiple={multiple}
         onChange={(event) => {
           const files = [...event.target.files];
           event.target.value = "";
           onFiles(files);
         }} />
-    </button>
+    </>
   );
 }
 
-function PageThumb({ page, index, active, onClick, onRemove }) {
-  return (
-    <div className={`page-thumb ${active ? "active" : ""}`} onClick={onClick} role="button" tabIndex={0}
-      onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && onClick()}>
-      <GripVertical className="grip" size={14} />
-      <img src={page.src} alt={page.name} />
-      <span>{index + 1}</span>
-      <button className="thumb-remove" aria-label="Remove page" onClick={(e) => { e.stopPropagation(); onRemove(); }}>
-        <X size={12} />
-      </button>
-    </div>
-  );
+const EDITOR_TABS = ["details", "content", "audio", "navigation"];
+const SIDE_TABS = ["pages", "bookmarks"];
+
+function moveTabFocus(event, tabs, setActive) {
+  if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+  event.preventDefault();
+  const current = tabs.indexOf(event.currentTarget.dataset.tab);
+  const next = event.key === "Home" ? 0
+    : event.key === "End" ? tabs.length - 1
+      : (current + (event.key === "ArrowRight" ? 1 : -1) + tabs.length) % tabs.length;
+  setActive(tabs[next]);
+  event.currentTarget.parentElement?.querySelector(`[data-tab="${tabs[next]}"]`)?.focus();
 }
 
 export default function Home() {
@@ -132,6 +134,8 @@ export default function Home() {
 
   useEffect(() => {
     const key = (e) => {
+      if (document.querySelector("[aria-modal='true']")) return;
+      if (e.target.matches("input, textarea, select, [contenteditable='true']")) return;
       if (e.key === "ArrowRight") navigateReader(1);
       if (e.key === "ArrowLeft") navigateReader(-1);
       if (e.key === "Escape") closeFullscreen();
@@ -240,14 +244,16 @@ export default function Home() {
             <div><span className="eyebrow">BOOK SETUP</span><strong>{title || "Untitled score"}</strong></div>
             <span>{pages.length} pages</span>
           </div>
-          <div className="editor-tabs" role="tablist">
-            <button className={editorTab === "details" ? "active" : ""} onClick={() => setEditorTab("details")}>Details</button>
-            <button className={editorTab === "content" ? "active" : ""} onClick={() => setEditorTab("content")}>Content</button>
-            <button className={editorTab === "audio" ? "active" : ""} onClick={() => setEditorTab("audio")}>Audio</button>
-            <button className={editorTab === "navigation" ? "active" : ""} onClick={() => setEditorTab("navigation")}>Navigation</button>
+          <div className="editor-tabs" role="tablist" aria-label="Book setup sections">
+            {EDITOR_TABS.map((tab) => <button key={tab} id={`editor-tab-${tab}`} role="tab"
+              data-tab={tab} aria-selected={editorTab === tab} aria-controls={`editor-panel-${tab}`}
+              tabIndex={editorTab === tab ? 0 : -1} className={editorTab === tab ? "active" : ""}
+              onKeyDown={(event) => moveTabFocus(event, EDITOR_TABS, setEditorTab)}
+              onClick={() => setEditorTab(tab)}>{tab[0].toUpperCase() + tab.slice(1)}</button>)}
           </div>
           <div className="editor-scroll">
-            {editorTab === "details" && <div className="editor-tab-content">
+            {editorTab === "details" && <div className="editor-tab-content" id="editor-panel-details"
+              role="tabpanel" aria-labelledby="editor-tab-details">
               <div className="panel-heading compact"><span className="eyebrow">BOOK DETAILS</span><h1>Book setup</h1><p>Name your score and choose its display options.</p></div>
               <label className="field"><span>Title</span><input value={title} onChange={(e) => { setTitle(e.target.value); setSaved(false); }} /></label>
               <label className="field"><span>Composer</span><input value={composer} onChange={(e) => { setComposer(e.target.value); setSaved(false); }} /></label>
@@ -260,7 +266,8 @@ export default function Home() {
               <div className="detected-size"><span>Detected page shape</span><strong>Automatic from upload</strong><small>The 3D book follows each page’s original proportions.</small></div>
             </div>}
 
-            {editorTab === "content" && <div className="editor-tab-content">
+            {editorTab === "content" && <div className="editor-tab-content" id="editor-panel-content"
+              role="tabpanel" aria-labelledby="editor-tab-content">
               <div className="section-title"><div><span className="eyebrow">BOOK CONTENT</span><h2>Pages & files</h2></div><span className="page-count">{pages.length} pages</span></div>
               <div className="upload-stack">
                 <UploadTile icon={FileImage} title="Cover artwork" detail="JPG or PNG · up to 20 MB" accept="image/*" filled={pages.some(p => p.kind === "cover")} onFiles={(f) => addImages(f, "cover")} />
@@ -272,7 +279,7 @@ export default function Home() {
             </div>}
 
             {editorTab === "audio" && <AudioEditor audioSrc={audioSrc} audioName={audioName}
-              error={audioError} onPick={pickBookAudio} />}
+              error={audioError} onPick={pickBookAudio} panelId="editor-panel-audio" />}
 
             {editorTab === "navigation" && <BookmarkEditor
               bookmarks={bookmarks}
@@ -282,6 +289,7 @@ export default function Home() {
               onAdd={openBookmarkCreator}
               onOpen={openBookmark}
               onDelete={deleteBookmark}
+              panelId="editor-panel-navigation"
             />}
           </div>
           <div className="quick-actions">
@@ -304,11 +312,19 @@ export default function Home() {
         </section>
 
         <aside className="side-panel">
-          <div className="side-tabs">
-            <button className={sideTab === "pages" ? "active" : ""} onClick={() => setSideTab("pages")}><FileImage size={14} /> Pages</button>
-            <button className={sideTab === "bookmarks" ? "active" : ""} onClick={() => setSideTab("bookmarks")}><Bookmark size={14} /> Bookmarks <span>{bookmarks.length}</span></button>
+          <div className="side-tabs" role="tablist" aria-label="Book navigation">
+            <button id="side-tab-pages" role="tab" data-tab="pages" aria-selected={sideTab === "pages"}
+              aria-controls="side-panel-pages" tabIndex={sideTab === "pages" ? 0 : -1}
+              className={sideTab === "pages" ? "active" : ""}
+              onKeyDown={(event) => moveTabFocus(event, SIDE_TABS, setSideTab)}
+              onClick={() => setSideTab("pages")}><FileImage size={14} /> Pages</button>
+            <button id="side-tab-bookmarks" role="tab" data-tab="bookmarks" aria-selected={sideTab === "bookmarks"}
+              aria-controls="side-panel-bookmarks" tabIndex={sideTab === "bookmarks" ? 0 : -1}
+              className={sideTab === "bookmarks" ? "active" : ""}
+              onKeyDown={(event) => moveTabFocus(event, SIDE_TABS, setSideTab)}
+              onClick={() => setSideTab("bookmarks")}><Bookmark size={14} /> Bookmarks <span>{bookmarks.length}</span></button>
           </div>
-          {sideTab === "pages" ? <>
+          {sideTab === "pages" ? <div id="side-panel-pages" role="tabpanel" aria-labelledby="side-tab-pages">
             <div className="side-panel-head"><span>ALL PAGES ({pages.length})</span><small>Quick jump</small></div>
             <div className="side-page-grid">
               {pages.map((page, index) => <button key={page.id} className={(spread === 0 && index === 0) || (spread > 0 && (index === 1 + (spread - 1) * 2 || index === 2 + (spread - 1) * 2)) ? "active" : ""}
@@ -317,13 +333,13 @@ export default function Home() {
               </button>)}
             </div>
             <div className="side-panel-footer"><button onClick={() => { setEditorTab("content"); setTimeout(() => document.getElementById("sheet-pages-input")?.click(), 0); }}><Plus size={14} /> Add pages</button></div>
-          </> : <BookmarkSidebar
+          </div> : <div id="side-panel-bookmarks" role="tabpanel" aria-labelledby="side-tab-bookmarks"><BookmarkSidebar
             bookmarks={bookmarks}
             activeBookmarkId={activeBookmarkId}
             getBookmarkLocation={(bookmark) => spreadLabel(resolveBookmarkSpread(bookmark))}
             onAdd={openBookmarkCreator}
             onOpen={openBookmark}
-          />}
+          /></div>}
         </aside>
       </main>}
       <BookmarkModal

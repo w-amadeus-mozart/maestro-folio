@@ -26,6 +26,10 @@
 > Image and PDF imports now validate type and size before changing the book,
 > cap PDF imports at 200 pages, surface image read/decode failures, and allow
 > in-progress PDF rendering to be cancelled safely.
+> Dialogs now trap and restore focus, support Escape dismissal, and expose
+> labelled semantics. Editor and sidebar tabs support arrow-key navigation,
+> reader controls have accessible names, focus indicators and coarse-pointer
+> targets are strengthened, and reduced-motion preferences disable 3D motion.
 > Cloud synchronization and user accounts remain out of scope.
 
 ## 1. Executive summary

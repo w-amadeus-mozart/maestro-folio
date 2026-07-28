@@ -1,21 +1,24 @@
 import { BookOpen, Check, Loader2, X } from "lucide-react";
+import { useDialogFocus } from "../../shared/use-dialog-focus.js";
 
 export function PdfImportModal({ state, onChooseCover, onChooseIndex, onConfirm, onClose }) {
+  const dialogRef = useDialogFocus(Boolean(state.open), onClose);
   if (!state.open) return null;
 
   return (
-    <div className="pdf-modal-backdrop" role="dialog" aria-modal="true" aria-label="Import PDF pages">
-      <div className="pdf-modal">
+    <div className="pdf-modal-backdrop">
+      <div ref={dialogRef} className="pdf-modal" role="dialog" aria-modal="true"
+        aria-labelledby="pdf-dialog-title" aria-describedby="pdf-dialog-file" tabIndex={-1}>
         <div className="pdf-modal-head">
           <div>
             <span className="eyebrow">IMPORT PDF</span>
-            <h2>{state.status === "loading" ? "Preparing your score" : "Choose your book pages"}</h2>
-            <p>{state.fileName}</p>
+            <h2 id="pdf-dialog-title">{state.status === "loading" ? "Preparing your score" : "Choose your book pages"}</h2>
+            <p id="pdf-dialog-file">{state.fileName}</p>
           </div>
-          <button className="pdf-close" onClick={onClose} aria-label="Close PDF import"><X size={18} /></button>
+          <button data-dialog-initial-focus className="pdf-close" onClick={onClose} aria-label="Close PDF import"><X size={18} /></button>
         </div>
         {state.status === "loading" ? (
-          <div className="pdf-loading">
+          <div className="pdf-loading" role="status" aria-live="polite">
             <span className="pdf-loader"><Loader2 className="spin" size={26} /></span>
             <strong>Rendering page {state.progress || 1}</strong>
             <p>Creating clear previews from your PDF. You can cancel without changing the current book.</p>

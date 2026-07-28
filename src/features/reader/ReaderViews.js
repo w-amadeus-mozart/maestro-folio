@@ -48,7 +48,8 @@ export function BookStage({
       <div className="stage-toolbar">
         <span><Rotate3D size={15} /> Drag to explore</span>
         <button className="stage-button" onClick={onResetView}>Reset view</button>
-        <button className="stage-button icon-only" onClick={onFullscreen}><Maximize2 size={15} /></button>
+        <button className="stage-button icon-only" aria-label={fullscreen ? "Exit fullscreen reader" : "Open fullscreen reader"}
+          onClick={onFullscreen}><Maximize2 size={15} /></button>
       </div>
       <div className="ambient-glow" />
       <div className={`book-wrap ${turning ? "is-turning" : ""}`}
@@ -79,9 +80,9 @@ export function BookStage({
 export function ReaderControls({ spread, maxSpread, label, onPrevious, onNext }) {
   return (
     <div className="reader-controls">
-      <button onClick={onPrevious} disabled={spread <= 0}><ChevronLeft size={21} /></button>
+      <button aria-label="Previous spread" onClick={onPrevious} disabled={spread <= 0}><ChevronLeft size={21} /></button>
       <div><strong>{label}</strong><small>{spread + 1} of {maxSpread + 1}</small></div>
-      <button onClick={onNext} disabled={spread >= maxSpread}><ChevronRight size={21} /></button>
+      <button aria-label="Next spread" onClick={onNext} disabled={spread >= maxSpread}><ChevronRight size={21} /></button>
     </div>
   );
 }

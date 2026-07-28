@@ -1,5 +1,6 @@
 import { useRef } from "react";
 import { Bookmark, BookmarkPlus, ChevronRight, Headphones, Plus, Trash2, X } from "lucide-react";
+import { useDialogFocus } from "../../shared/use-dialog-focus.js";
 
 export function BookmarkEditor({
   bookmarks,
@@ -8,10 +9,11 @@ export function BookmarkEditor({
   getBookmarkLocation,
   onAdd,
   onOpen,
-  onDelete
+  onDelete,
+  panelId
 }) {
   return (
-    <div className="editor-tab-content">
+    <div className="editor-tab-content" id={panelId} role="tabpanel" aria-labelledby="editor-tab-navigation">
       <div className="bookmark-heading">
         <div><span className="eyebrow">NAVIGATION</span><h3>Bookmarks</h3></div>
         <button onClick={onAdd}><BookmarkPlus size={14} /> Add</button>
@@ -55,18 +57,20 @@ export function BookmarkSidebar({ bookmarks, activeBookmarkId, getBookmarkLocati
 
 export function BookmarkModal({ draft, location, audioError, onNameChange, onConfirm, onClose, onAudio }) {
   const audioInput = useRef(null);
+  const dialogRef = useDialogFocus(Boolean(draft), onClose);
   if (!draft) return null;
 
   return (
-    <div className="bookmark-modal-backdrop" role="dialog" aria-modal="true" aria-label="Add bookmark">
-      <div className="bookmark-modal">
+    <div className="bookmark-modal-backdrop">
+      <div ref={dialogRef} className="bookmark-modal" role="dialog" aria-modal="true"
+        aria-labelledby="bookmark-dialog-title" aria-describedby="bookmark-dialog-location" tabIndex={-1}>
         <div className="bookmark-modal-icon"><BookmarkPlus size={23} /></div>
         <button className="bookmark-modal-close" onClick={onClose} aria-label="Close"><X size={17} /></button>
         <span className="eyebrow">NEW BOOKMARK</span>
-        <h2>Name this piece</h2>
-        <p className="bookmark-location"><Bookmark size={13} /> {location}</p>
+        <h2 id="bookmark-dialog-title">Name this piece</h2>
+        <p id="bookmark-dialog-location" className="bookmark-location"><Bookmark size={13} /> {location}</p>
         <label className="field"><span>Bookmark name</span>
-          <input autoFocus value={draft.name} placeholder="e.g. Piece 10 · Amazing Grace"
+          <input data-dialog-initial-focus value={draft.name} placeholder="e.g. Piece 10 · Amazing Grace"
             onChange={(event) => onNameChange(event.target.value)} />
         </label>
         <div className="bookmark-audio-field">
